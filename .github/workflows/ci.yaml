@@ -1,0 +1,39 @@
+name: ci-go-workflow
+
+on:
+  push:
+    # this workflow would be executed at any push event to main or develop branches
+    branches: [main, develop]
+  pull_request:
+    # this workflow would be executed at any pull request event with base branch main or develop
+    branches: [main, develop]
+
+jobs:
+  build-check-application:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ macos-latest, ubuntu-latest, windows-latest ]
+        golang_version: [ 1.25 ]
+
+    env:
+        OS: ${{ matrix.os }}
+        GOLANG_VERSION: ${{ matrix.golang_version }}
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v4
+
+      - name: setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.golang_version }}
+          cache:  false
+
+      - name: dependencies
+        run: go mod tidy
+
+      - name: run tests
+        run: go test ./... -v

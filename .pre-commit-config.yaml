@@ -1,0 +1,42 @@
+repos:
+  - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+      - id: pretty-format-golang
+        args:
+          - --autofix
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.44.2
+    hooks:
+      - id: golangci-lint
+        entry: golangci-lint run
+        args:
+          - --max-issues-per-linter=0
+          - --max-same-issues=0
+          - --config=.code_quality/.golangci.yml
+          - --new-from-rev=HEAD~1 # comment this arg if you want to run pre-commit run --all-files
+
+  # General checksAdd commentMore actions
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: [--branch, main, --branch, master]
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Official Conventional Commits validation
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.8.2
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
