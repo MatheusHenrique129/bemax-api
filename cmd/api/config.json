@@ -1,0 +1,9 @@
+{
+  "log_level": "debug",
+  "server": {
+    "port": "3000",
+    "app_idle_timeout_ms": 70,
+    "app_read_timeout_ms": 200,
+    "app_write_timeout_ms": 200
+  }
+}

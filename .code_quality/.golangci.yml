@@ -1,0 +1,71 @@
+# golangci-lint configuration file
+# This file configures the behavior of golangci-lint, a powerful linter aggregator for Go code.
+# Optimized for Clean Architecture projects with internal/ structure
+# For more information, visit: https://golangci-lint.run/
+
+# Version of the configuration file
+# version: "2"
+
+# Run configuration
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+  tests: false  # Disable running tests during linting
+
+# Linters configuration
+linters:
+  # Disable all linters by default and enable only the ones we want
+  default: none
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    # - fieldalignment # Check for field alignment (disabled: premature optimization)
+    - structcheck
+    - varcheck
+    - ineffassign
+    - deadcode
+    - typecheck
+
+# Settings for specific linters
+linters-settings:
+  # Line length limit
+  lll:
+    line-length: 200
+
+  # Interface return settings
+  ireturn:
+    allow:
+      - anon           # Allow anonymous interfaces
+      - error          # Allow error interface
+      - empty          # Allow empty interfaces
+      - stdlib         # Allow standard library interfaces
+      - (or|er)$       # Allow interfaces ending with 'or' or 'er'
+
+  # Cognitive complexity - conservative but realistic
+  gocognit:
+    min-complexity: 18
+
+  # Magic number detection with common exceptions
+  mnd:
+    ignored-functions:
+      - os.Chmod
+      - os.Mkdir.*
+      - os.OpenFile
+      - strconv.FormatInt
+      - strconv.ParseInt
+    ignored-files:
+      - "_test.go"
+
+# Code formatters configuration
+formatters:
+  enable:
+    - gci           # Go Code Imports
+    - gofmt         # Go Format
+    - gofumpt       # Go Format with extra rules
+    - goimports     # Go Imports
+    - golines       # Go Lines
+  settings:
+    golines:
+      max-len: 200  # Maximum line length
