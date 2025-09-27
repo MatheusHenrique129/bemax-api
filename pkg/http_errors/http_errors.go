@@ -17,14 +17,14 @@ const (
 type ErrorResponse struct {
 	Message    string              `json:"message"`
 	ErrorCode  string              `json:"error"`
-	CauseList  apierrors.CauseList `json:"cause_list,omitempty"`
+	CauseList  apierrors.CauseList `json:"causes,omitempty"`
 	StatusCode int                 `json:"status_code"`
 }
 
 // ErrorHandler writes a formatted JSON error response to the provided http.ResponseWriter.
 //
 // It handles three main cases:
-// - If the error is of type *apierrors.MultiError, it extracts all sub-errors and uses the specified status code.
+// - If the error is of type *apierrors.RestError, it extracts all sub-errors and uses the specified status code.
 // - If the error message indicates a JSON parsing error, it returns a 400 Bad Request with a cause "invalid json format".
 // - For all other errors, it returns a 500 Internal Server Error with a cause "internal error".
 //
@@ -34,7 +34,7 @@ type ErrorResponse struct {
 //
 // Returns:
 // - Always returns nil (as it writes the response directly).
-func ErrorHandler(w http.ResponseWriter, err error, code ...int) {
+func ErrorHandler(w http.ResponseWriter, err error) {
 	w.Header().Set(contentTypeHeaderKey, contentTypeApplicationJSON)
 
 	response := ErrorResponse{
@@ -42,22 +42,13 @@ func ErrorHandler(w http.ResponseWriter, err error, code ...int) {
 	}
 
 	status := http.StatusInternalServerError
-	if len(code) > 0 && code[0] > 0 {
-		status = code[0]
-	}
-
-	var restError apierrors.RestError
 
 	switch e := err.(type) {
 	case apierrors.RestError:
-		response.Message = restError.Message()
-		response.ErrorCode = restError.Code()
-		status = restError.Status()
-		response.CauseList = restError.Cause()
-
+		response.Message = e.Message()
+		response.ErrorCode = e.Code()
 		status = e.Status()
 		response.CauseList = e.Cause()
-
 	case *json.UnmarshalTypeError:
 		status = http.StatusBadRequest
 		response.CauseList = append(response.CauseList, "invalid json format")

@@ -19,12 +19,6 @@ func main() {
 		fmt.Printf("error loading configuration: %s", err.Error())
 	}
 
-	// Get configuration analisar e remover
-	//cfg := cfg.GetConfig()
-
-	// Enable configuration watching (optional) analisar e remover
-	//cfg.EnableConfigWatching()
-
 	logLevel := logger.LogLevel(cfg.LogLevel)
 	loggerAdapter := logger.NewZapLoggerAdapter(logLevel)
 

@@ -1,12 +1,14 @@
-package authinfra
+package auth
 
 import (
 	"errors"
 	"time"
 
+	"github.com/MatheusHenrique129/bemax-api/internal/core"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/apierrors"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/domain"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
+	"github.com/MatheusHenrique129/bemax-api/internal/core/services/dto"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -20,24 +22,28 @@ type jwtAdapter struct {
 	expiresAt time.Duration
 }
 
-func (ja *jwtAdapter) GenerateToken(userID uuid.UUID, email string, roles []domain.Role, ttl time.Duration) (string, apierrors.RestError) {
+func (j *jwtAdapter) GenerateToken(userID uuid.UUID, email string, roles []domain.Role, ttl time.Duration) (dto.GetTokenResponse, apierrors.RestError) {
 	if ttl <= 0 {
 		ttl = _defaultExpires
 	}
 
-	claims := domain.NewTokenUserClaims(userID, email, domain.TokenTypeBearer, roles, ttl)
+	claims := domain.NewTokenUserClaims(userID, email, core.TokenTypeBearer, roles, ttl)
 
 	// TODO Change to SigningMethodRS256
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, err := token.SignedString([]byte(ja.secretKey))
+	signed, err := token.SignedString([]byte(j.secretKey))
 	if err != nil {
-		return "", apierrors.NewInternalServerRestError("error trying to sign the token", err)
+		return dto.GetTokenResponse{}, apierrors.NewInternalServerRestError("error trying to sign the token", err)
 	}
 
-	return signed, nil
+	return dto.GetTokenResponse{
+		Token:     signed,
+		Timestamp: time.Now().UTC().Local(),
+		ExpireAt:  ttl,
+	}, nil
 }
 
-func (ja *jwtAdapter) ValidateToken(tokenString string) (*domain.Claims, apierrors.RestError) {
+func (j *jwtAdapter) ValidateToken(tokenString string) (*domain.Claims, apierrors.RestError) {
 	if tokenString == "" {
 		return nil, apierrors.NewUnauthorizedRestError("token must not be empty")
 	}
@@ -48,7 +54,7 @@ func (ja *jwtAdapter) ValidateToken(tokenString string) (*domain.Claims, apierro
 			return nil, apierrors.NewBadRequestRestError("invalid token signing method")
 		}
 
-		return []byte(ja.secretKey), nil
+		return []byte(j.secretKey), nil
 	})
 
 	if err != nil {

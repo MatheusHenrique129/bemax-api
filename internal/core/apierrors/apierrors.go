@@ -63,7 +63,7 @@ func NewBadRequestValidationRestError(message string, error string, cause CauseL
 }
 
 func NewUnauthorizedRestError(message string) RestError {
-	return restError{message, "unauthorized_scopes", nil, http.StatusUnauthorized}
+	return restError{message, "unauthorized", nil, http.StatusUnauthorized}
 }
 
 func NewTooManyRequestsRestError(message string) RestError {
@@ -74,8 +74,8 @@ func NewForbiddenRestError(message string) RestError {
 	return restError{message, "forbidden", nil, http.StatusForbidden}
 }
 
-func NewConflictRestError(message string) RestError {
-	return restError{message, "conflict_error", nil, http.StatusConflict}
+func NewConflictRestError(message string, cause CauseList) RestError {
+	return restError{message, "conflict_error", cause, http.StatusConflict}
 }
 
 func NewInternalServerRestError(message string, err error) RestError {

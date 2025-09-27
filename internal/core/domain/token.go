@@ -7,11 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
-	TokenTypeBearer  TokenType = "bearer"
-	TokenTypeRefresh TokenType = "refresh"
-)
-
 type TokenType string
 
 type Token struct {

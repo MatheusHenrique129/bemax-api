@@ -91,5 +91,10 @@ func RegisterRoutes(builder *AppBuilder) http.Handler {
 
 	r.Get("/ping", builder.HealthHandler.Ping)
 
+	r.Post("/auth/registry", builder.AuthHandler.RegistryUser)
+
+	r.With(builder.AuthMiddleware.AuthenticateRequest).
+		Post("/auth/login", builder.AuthHandler.Login)
+
 	return r
 }
