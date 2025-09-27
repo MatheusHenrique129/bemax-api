@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/MatheusHenrique129/bemax-backend/internal/core/ports"
+	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )

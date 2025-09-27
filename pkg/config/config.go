@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/MatheusHenrique129/bemax-backend/internal/core/ports"
+	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 )

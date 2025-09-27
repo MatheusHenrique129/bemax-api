@@ -1,4 +1,4 @@
-package http_errors_test
+package apierrors_test
 
 import (
 	"errors"

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MatheusHenrique129/bemax-backend/internal/core/ports"
+	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

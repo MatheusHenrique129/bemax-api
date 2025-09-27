@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/MatheusHenrique129/bemax-backend/internal/core/errs"
+	"github.com/MatheusHenrique129/bemax-api/internal/core/apierrors"
 )
 
 const (
@@ -15,15 +15,16 @@ const (
 
 // ErrorResponse defines the structure of the JSON response returned when an error occurs.
 type ErrorResponse struct {
-	StatusCode int      `json:"status_code"`
-	Message    string   `json:"message"`
-	CauseList  []string `json:"cause_list,omitempty"`
+	Message    string              `json:"message"`
+	ErrorCode  string              `json:"error"`
+	CauseList  apierrors.CauseList `json:"cause_list,omitempty"`
+	StatusCode int                 `json:"status_code"`
 }
 
 // ErrorHandler writes a formatted JSON error response to the provided http.ResponseWriter.
 //
 // It handles three main cases:
-// - If the error is of type *errs.MultiError, it extracts all sub-errors and uses the specified status code.
+// - If the error is of type *apierrors.MultiError, it extracts all sub-errors and uses the specified status code.
 // - If the error message indicates a JSON parsing error, it returns a 400 Bad Request with a cause "invalid json format".
 // - For all other errors, it returns a 500 Internal Server Error with a cause "internal error".
 //
@@ -33,7 +34,7 @@ type ErrorResponse struct {
 //
 // Returns:
 // - Always returns nil (as it writes the response directly).
-func ErrorHandler(w http.ResponseWriter, err error) {
+func ErrorHandler(w http.ResponseWriter, err error, code ...int) {
 	w.Header().Set(contentTypeHeaderKey, contentTypeApplicationJSON)
 
 	response := ErrorResponse{
@@ -41,13 +42,22 @@ func ErrorHandler(w http.ResponseWriter, err error) {
 	}
 
 	status := http.StatusInternalServerError
+	if len(code) > 0 && code[0] > 0 {
+		status = code[0]
+	}
+
+	var restError apierrors.RestError
 
 	switch e := err.(type) {
-	case *errs.MultiError:
-		status = e.StatusCode
-		for _, subErr := range e.Errors {
-			response.CauseList = append(response.CauseList, subErr.Error())
-		}
+	case apierrors.RestError:
+		response.Message = restError.Message()
+		response.ErrorCode = restError.Code()
+		status = restError.Status()
+		response.CauseList = restError.Cause()
+
+		status = e.Status()
+		response.CauseList = e.Cause()
+
 	case *json.UnmarshalTypeError:
 		status = http.StatusBadRequest
 		response.CauseList = append(response.CauseList, "invalid json format")

@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 
-	"github.com/MatheusHenrique129/bemax-backend/internal/bootstrap"
-	"github.com/MatheusHenrique129/bemax-backend/internal/core/ports"
-	"github.com/MatheusHenrique129/bemax-backend/pkg/config"
-	"github.com/MatheusHenrique129/bemax-backend/pkg/logger"
+	"github.com/MatheusHenrique129/bemax-api/internal/bootstrap"
+	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
+	"github.com/MatheusHenrique129/bemax-api/pkg/config"
+	"github.com/MatheusHenrique129/bemax-api/pkg/logger"
 )
 
 func main() {

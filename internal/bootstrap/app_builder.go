@@ -1,8 +1,8 @@
 package bootstrap
 
 import (
-	"github.com/MatheusHenrique129/bemax-backend/internal/adapters/handlers"
-	"github.com/MatheusHenrique129/bemax-backend/internal/core/ports"
+	"github.com/MatheusHenrique129/bemax-api/internal/adapters/handlers"
+	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
 )
 
 // AppBuilder holds all the initialized application dependencies and components.

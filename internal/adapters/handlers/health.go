@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/MatheusHenrique129/bemax-backend/internal/adapters/constants"
+	"github.com/MatheusHenrique129/bemax-api/internal/adapters/constants"
 )
 
 type healthHandler struct{}
