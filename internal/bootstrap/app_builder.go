@@ -33,7 +33,8 @@ func BuildAppDependencies(vLogger ports.Logger, cfg ports.Configuration) *AppBui
 	}
 
 	// Repositories
-	userRepository := mysql.NewMysqlUserRepository(vLogger, dbClientAdapter)
+	userRepositoryPort := mysql.NewMysqlUserRepository(vLogger, dbClientAdapter)
+	tokenRepositoryPort := mysql.NewMysqlTokenRepository(vLogger, dbClientAdapter)
 	roleRepositoryPort := mysql.NewMysqlRoleRepository(vLogger, dbClientAdapter)
 	userRoleRepositoryPort := mysql.NewMysqlUserRoleRepository(vLogger, dbClientAdapter)
 
@@ -42,9 +43,9 @@ func BuildAppDependencies(vLogger ports.Logger, cfg ports.Configuration) *AppBui
 	jwtAdapter := auth.NewJWTAdapter(cfg.Auth.JWT.Secret, cfg.Auth.JWT.TTL)
 
 	// Services
-	authService := services.NewAuthTokenService(vLogger, jwtAdapter)
 	roleService := services.NewRoleService(vLogger, roleRepositoryPort, userRoleRepositoryPort)
-	userService := services.NewUserService(vLogger, userRepository, roleService)
+	userService := services.NewUserService(vLogger, userRepositoryPort, roleService)
+	authService := services.NewAuthTokenService(vLogger, jwtAdapter, userService, tokenRepositoryPort)
 
 	// Middlewares
 	authMiddleware := middleware.NewAuthMiddleware(vLogger, jwtAdapter, authService)
@@ -52,7 +53,7 @@ func BuildAppDependencies(vLogger ports.Logger, cfg ports.Configuration) *AppBui
 	// Handlers
 	vLogger.Info("Creating handlers")
 	healthHandler := handlers.NewHealthHandler()
-	authHandler := handlers.NewAuthHandler(vLogger, jwtAdapter, userService)
+	authHandler := handlers.NewAuthHandler(vLogger, jwtAdapter, userService, authService)
 
 	return &AppBuilder{
 		Logger:         vLogger,

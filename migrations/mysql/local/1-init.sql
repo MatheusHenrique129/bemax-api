@@ -17,7 +17,7 @@ CREATE TABLE USERS (
    id CHAR(36) NOT NULL PRIMARY KEY,
    email VARCHAR(255) NOT NULL UNIQUE,
    password_hash VARCHAR(255) NOT NULL,
-   full_name VARCHAR(255) NOT NULL,
+   full_name VARCHAR(180) NOT NULL,
    cpf VARCHAR(14) NOT NULL UNIQUE,
    birth_date DATE,
    phone VARCHAR(20) NOT NULL,
@@ -89,7 +89,9 @@ CREATE TABLE LOGIN_ATTEMPTS (
     success BOOLEAN NOT NULL,
     ip_address VARCHAR(50),
     user_agent TEXT,
+    failure_reason VARCHAR(100) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_LOGIN_ATTEMPTS_EMAIL (email),
     INDEX idx_LOGIN_ATTEMPTS_CREATED_AT (created_at)
+    INDEX idx_LOGIN_ATTEMPTS_IP (ip_address)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

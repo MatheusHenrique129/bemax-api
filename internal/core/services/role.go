@@ -11,6 +11,7 @@ import (
 
 type RoleService interface {
 	AssignRoleToUser(ctx context.Context, userID uuid.UUID, roleName string) (domain.Role, apierrors.RestError)
+	GetUserRoles(ctx context.Context, userID uuid.UUID) ([]domain.Role, apierrors.RestError)
 }
 
 type roleService struct {
@@ -28,6 +29,15 @@ func (s *roleService) AssignRoleToUser(ctx context.Context, userID uuid.UUID, ro
 	err = s.userRoleRepository.AssignRole(ctx, userID, res.ID)
 	if err != nil {
 		return domain.Role{}, apierrors.NewInternalServerRestError(err.Error(), err)
+	}
+
+	return res, nil
+}
+
+func (s *roleService) GetUserRoles(ctx context.Context, userID uuid.UUID) ([]domain.Role, apierrors.RestError) {
+	res, err := s.userRoleRepository.FindRolesByUserID(ctx, userID)
+	if err != nil {
+		return nil, apierrors.NewInternalServerRestError("error find roles for user", err)
 	}
 
 	return res, nil

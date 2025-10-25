@@ -25,7 +25,7 @@ type User struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 	CreatedAt time.Time  `json:"created_at"`
 	LastLogin *time.Time `json:"last_login"`
-	Password  string     `json:"password"`
+	Password  string     `json:"-"`
 	Phone     string     `json:"phone"`
 	Status    Status     `json:"status"`
 	CPF       string     `json:"cpf"`

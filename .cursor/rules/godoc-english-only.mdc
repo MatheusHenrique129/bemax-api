@@ -1,0 +1,63 @@
+---
+description: GoDoc Documentation Language Standard
+globs: *.go
+---
+# GoDoc Documentation Language Standard
+
+## Documentation Language Requirement
+- **All GoDoc documentation MUST be written in English only**
+- This applies to all comments that serve as documentation for exported functions, methods, types, constants, and variables
+- Function comments, method comments, type comments, and package comments must be in English
+- Code comments that are not GoDoc documentation may be in any language, but GoDoc comments must be English
+
+## What Constitutes GoDoc Documentation
+GoDoc documentation includes:
+- Package-level comments (comments immediately before `package` declaration)
+- Comments immediately before exported functions, methods, types, constants, and variables
+- Comments that start with the name of the function/type/constant/variable being documented
+
+## Examples
+
+### ✅ Correct - English GoDoc
+```go
+// ProcessUserData validates and processes user information for storage.
+// It returns the processed user data and any validation errors encountered.
+func ProcessUserData(userData *UserInput) (*User, error) {
+    // internal comment can be in any language
+    return processData(userData)
+}
+
+// User represents a system user with authentication credentials.
+type User struct {
+    ID   string
+    Name string
+}
+```
+
+### ❌ Incorrect - Non-English GoDoc
+```go
+// ProcessUserData valida e processa informações do usuário para armazenamento.
+// Retorna os dados do usuário processados e quaisquer erros de validação encontrados.
+func ProcessUserData(userData *UserInput) (*User, error) {
+    return processData(userData)
+}
+
+// User representa um usuário do sistema com credenciais de autenticação.
+type User struct {
+    ID   string
+    Name string
+}
+```
+
+## Rationale
+- Ensures consistency across the codebase
+- Makes the code accessible to international developers
+- Follows Go community standards and best practices
+- Facilitates code reviews and maintenance by global teams
+- Ensures proper integration with Go documentation tools
+
+## Enforcement
+- All new GoDoc comments must be in English
+- When editing existing code, update any non-English GoDoc comments to English
+- Code reviews should verify GoDoc language compliance
+- This rule applies to all Go files in the project

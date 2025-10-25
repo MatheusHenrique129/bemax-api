@@ -7,10 +7,12 @@ import (
 
 	"github.com/MatheusHenrique129/bemax-api/internal/adapters/constants"
 	"github.com/MatheusHenrique129/bemax-api/internal/adapters/handlers/middleware"
+	"github.com/MatheusHenrique129/bemax-api/internal/core"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/apierrors"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/services"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/services/dto"
+	"github.com/MatheusHenrique129/bemax-api/internal/util"
 	"github.com/MatheusHenrique129/bemax-api/pkg/http_errors"
 )
 
@@ -23,10 +25,45 @@ type authHandler struct {
 	logger      ports.Logger
 	authJWT     ports.AuthJWT
 	userService services.UserService
+	authService services.AuthTokenService
 }
 
 func (a authHandler) Login(w http.ResponseWriter, r *http.Request) {
-	return
+	ctx := r.Context()
+
+	var req dto.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		a.logger.Error("error decoding request body: %v", err, err.Error())
+		formatErr := apierrors.NewBadRequestRestError("invalid request body.")
+		http_errors.ErrorHandler(w, formatErr)
+		return
+	}
+
+	accessToken, refreshToken, err := a.authService.Login(
+		ctx,
+		req.Email,
+		req.Password,
+		util.GetClientIP(r),
+		r.Header.Get(middleware.UserAgentHeaderKey),
+	)
+
+	if err != nil {
+		a.logger.Error("Login failed", err)
+		http_errors.ErrorHandler(w, err)
+		return
+	}
+
+	response := dto.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    string(core.TokenTypeBearer),
+	}
+
+	w.Header().Set(constants.ContentTypeHeaderKey, constants.ContentTypeApplicationJSON)
+	w.Header().Set(middleware.AuthHeaderKey, fmt.Sprintf("Bearer %s", accessToken))
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (a authHandler) RegistryUser(w http.ResponseWriter, r *http.Request) {
@@ -53,14 +90,7 @@ func (a authHandler) RegistryUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := a.authJWT.GenerateToken(newUser.ID, newUser.Email, newUser.Roles, 0)
-	if err != nil {
-		http_errors.ErrorHandler(w, err)
-		return
-	}
-
 	w.Header().Set(constants.ContentTypeHeaderKey, constants.ContentTypeApplicationJSON)
-	w.Header().Set(middleware.AuthHeaderKey, fmt.Sprintf("Bearer %s", token))
 
 	response := dto.UserRegisterResponse{
 		Email:     newUser.Email,
@@ -70,7 +100,6 @@ func (a authHandler) RegistryUser(w http.ResponseWriter, r *http.Request) {
 		DateBirth: newUser.BirthDate,
 		CreatedAt: newUser.CreatedAt,
 		UpdatedAt: newUser.UpdatedAt,
-		Token:     token,
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -82,11 +111,12 @@ func NewAuthHandler(
 	logger ports.Logger,
 	authJWT ports.AuthJWT,
 	userService services.UserService,
-
+	authService services.AuthTokenService,
 ) AuthHandler {
 	return &authHandler{
 		logger:      logger,
 		authJWT:     authJWT,
 		userService: userService,
+		authService: authService,
 	}
 }

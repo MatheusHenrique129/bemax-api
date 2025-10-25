@@ -12,6 +12,7 @@ require (
 	github.com/klassmann/cpfcnpj v0.0.0-20200907140233-a595c5fd8de1
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
+	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.42.0
 )

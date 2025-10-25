@@ -1,0 +1,22 @@
+---
+alwaysApply: false
+description: Project-specific standards and best practices for architecture, Go, and domain.
+globs: "**/*.go,**/*.sql,**/*.md"
+---
+# Project Standards
+
+Architecture, Go, and domain standards to keep consistency and quality.
+
+## Architecture (Clean Architecture)
+Expected structure and dependencies between layers. See examples in [README.md](mdc:README.md).
+
+## Domain (DDD)
+- Core entities: Principal, Role, Permission, MembersRequest, DefaultRoles
+- Business rules in entities and use cases
+
+## Go Standards
+- Imports formatted with goimports
+- Intention-revealing names
+- Errors with context (e.g., `fmt.Errorf("...: %w", err)`)
+- Use `context.Context`
+- Package-level declarations (variables, constants, types, functions) can be referenced across files within the same package

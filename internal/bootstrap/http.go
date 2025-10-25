@@ -89,12 +89,12 @@ func RegisterRoutes(builder *AppBuilder) http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/ping", builder.HealthHandler.Ping)
+	r.With(builder.AuthMiddleware.AuthenticateRequest).
+		Get("/ping", builder.HealthHandler.Ping)
 
 	r.Post("/auth/registry", builder.AuthHandler.RegistryUser)
 
-	r.With(builder.AuthMiddleware.AuthenticateRequest).
-		Post("/auth/login", builder.AuthHandler.Login)
+	r.Post("/auth/login", builder.AuthHandler.Login)
 
 	return r
 }

@@ -1,0 +1,238 @@
+---
+alwaysApply: true
+description: Main rule to standardize and trigger PR text generation
+---
+# PR Rules
+
+Use these rules to standardize PRs and trigger automatic description generation when requested.
+
+## Response format (required)
+- The PR text returned in chat must be wrapped in a ```markdown code block to enable the copy button.
+- Always respond with the template inside the code block, ready to copy/paste into the PR description.
+- Do not include extra commentary outside the code block; provide only the PR description content inside.
+- Ensure headings, lists, and code fences render properly inside the markdown block.
+- The response must begin with ```markdown, then `## 📋 Description` on the next line, and end with ```.
+- The response must not contain any preface text or blockquotes outside the code block.
+- The response must not include any trailing commentary after the closing ```.
+
+## When to auto-generate PR text
+If a user asks for a "PR text" (e.g., "PR text", "pull request description", "PR description", "PR template"), generate the description using the template below. The user may ask for this PR text or description in english, portuguese or spanish.
+
+## Triggers (keywords)
+- "PR text", "pull request text", "PR description", "PR template"
+- "pull request description", "create PR", "text for pull request"
+- "texto de PR", "texto para PR", "descrição de PR", "texto para meu PR"
+- "pull request description", "criar PR", "texto para pull request"
+
+### PR Shortcut Command
+- `!pr` or any case variation (`!PR`, `!pr text`, `!pr description`)
+- When user types any variation of `!pr`, immediately trigger the complete PR analysis and generation process
+
+### Optional Mermaid diagram trigger (explicit only)
+- Include a simplified Mermaid diagram ONLY if the user explicitly asks for it.
+- Trigger keywords (any language): "include mermaid", "add mermaid diagram", "com diagrama mermaid", "diagrama mermaid", "incluir diagrama mermaid".
+
+### Default branches behavior
+- If the user does not specify source/target branches, assume:
+  - Source: current checked-out branch
+  - Target: `develop`
+- Use these defaults for title/type detection, diff context, and compliance checks.
+
+## PR title structure
+```
+<type>(<scope>): <description>
+
+Examples:
+- feature(feature): add Tiger token validation middleware
+- hotfix(hotfix): resolve role assignment validation error
+- migration(migration): initialize grants schema
+```
+
+## Description template (use when generating PRs)
+The following template must be emitted as raw Markdown (no surrounding code fences):
+
+## 📋 Description
+Brief summary of changes made and problem solved.
+
+## 🎯 Motivation and Context
+- Why is this change required?
+- What problem does it solve?
+- Related issue links (if applicable)
+
+## 🔍 PR Analysis & Standards Compliance
+Last Commit: <commit_sha>  <!-- fill with `git rev-parse --short HEAD` -->
+Standards Reviewed: [project-standards.mdc](mdc:.cursor/rules/project-standards.mdc) | [godoc-english-only.mdc](mdc:.cursor/rules/godoc-english-only.mdc)
+
+### Compliance Summary
+- Overall: [Compliant | Non-compliant]
+- GoDoc Language: [Compliant | Non-compliant] - All GoDoc documentation in English
+- Notes: [brief notes]
+
+### Non-compliance Findings
+- File: path/to/file.go:123
+  - Issue: [describe deviation]
+  - Standard: [section/topic]
+  - Reference: [project-standards.mdc](mdc:.cursor/rules/project-standards.mdc) | [godoc-english-only.mdc](mdc:.cursor/rules/godoc-english-only.mdc)
+  - Suggested Change (to include in this PR):
+    - [concise action]
+
+## 🔄 Type of Change
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Documentation update
+- [ ] Refactoring (no functional changes)
+- [ ] Performance improvement
+- [ ] Test improvements
+
+## 🧪 Testing
+- [ ] Unit tests added/updated
+- [ ] Integration tests added/updated
+- [ ] Manual testing performed
+- [ ] All existing tests pass
+
+### Test Cases Covered:
+- List specific test scenarios
+- Include edge cases tested
+- Mention any test data requirements
+
+## 📸 Screenshots (if applicable)
+Include before/after screenshots for UI changes or API responses.
+
+## 🔧 Technical Details
+### Architecture Impact:
+- Changes to domain models
+- New/modified interfaces or ports
+- Database schema changes
+- External service integrations
+
+### Key Implementation Details:
+- Algorithm changes
+- Performance considerations
+- Security implications
+- Error handling improvements
+
+## 📋 Checklist
+- [ ] Code follows project's Go standards and conventions
+- [ ] Code is self-documenting with appropriate comments
+- [ ] All functions/methods have proper GoDoc documentation
+- [ ] All GoDoc documentation is written in English only
+- [ ] goimports has been run (imports properly formatted)
+- [ ] No unused imports or variables
+- [ ] Error handling follows project patterns
+- [ ] Proper line spacing rules applied
+- [ ] No linter warnings/errors
+- [ ] Security considerations addressed
+- [ ] Performance impact evaluated
+- [ ] Database migrations included (if applicable)
+- [ ] Configuration changes documented
+- [ ] API documentation updated (if applicable)
+
+## 🚀 Deployment Notes
+- Any special deployment steps required
+- Configuration changes needed
+- Migration steps
+- Rollback procedures
+
+## 📚 Additional Notes
+- Breaking changes and migration guide
+- Dependencies added/removed
+- Future improvements planned
+
+### Optional Mermaid Diagram
+- Only include if the user explicitly requests a Mermaid diagram.
+- Add a final section titled: `## 🗺 Diagram (Mermaid)`.
+- Keep it high-level (max ~6 nodes), no sensitive details.
+- Example shape to follow (adapt with real components):
+  ```mermaid
+  flowchart LR
+    A[API Request] --> B[Handler]
+    B --> C[Usecase]
+    C --> D[Repository]
+    C --> E[Stream Publisher]
+    D --> F[(DB)]
+  ```
+
+## Generation Process
+1. Analyze workspace changes
+2. Detect change type from branch prefix (feature/ | hotfix/ | migration/)
+3. Resolve PR title scope from branch prefix (feature → feature, hotfix → hotfix, migration → migration)
+   - File path scopes remain for body context only (not used in title)
+4. Generate content using the template below
+5. Validate branch constraints:
+   - feature/* and hotfix/*: no constraint beyond general code changes
+   - migration/*: changes must be limited to `migrations/`
+   - If migration/* includes files outside `migrations/`, mark Non-compliant in the PR template Compliance Summary
+
+## Output Constraints (strict)
+- Wrap the entire PR description in a ```markdown code block to enable the copy button in chat.
+- Do NOT add any preface or follow-up commentary outside the code block.
+- Inside the code block, start with `## 📋 Description` and follow the template exactly.
+- Use the template verbatim and fill dynamic fields.
+- Do NOT include any meta text like "Here is your PR" or similar before or after the code block.
+- The response format should be: ```markdown\n[PR template content]\n```
+
+## Scope Detection (path → scope)
+```
+internal/adapters/handlers/ → handlers
+internal/adapters/repository/ → repository
+internal/adapters/locker/ → locker
+internal/adapters/tracer/ → tracer
+internal/adapters/metric/ → metric
+internal/adapters/utils/ → utils
+internal/core/domain/ → domain
+internal/core/usecases/ → usecase
+internal/core/ports/ → ports
+internal/core/errs/ → errs
+internal/bootstrap/ → bootstrap
+migrations/ → migration
+pkg/config/ → config
+pkg/logger/ → logger
+pkg/http_errors/ → http_errors
+```
+
+## Checklist Heuristics (Type of Change)
+Note: These heuristics only help tick the "Type of Change" checklist in the PR body.
+They do NOT set the PR title type, which always comes from the branch prefix: feature/ | hotfix/ | migration/.
+
+- If only test files changed → tick "Test improvements"
+- If only documentation changed → tick "Documentation update"
+- If performance-sensitive diffs detected → tick "Performance improvement"
+- If structural renames/reorg without behavior change → tick "Refactoring (no functional changes)"
+- If clear bug-fix patterns present → tick "Bug fix"
+- Otherwise, if branch is feature/* and adds functionality → tick "New feature"
+
+## Business and Technical Context Integration
+- If `domain/` changes → emphasize business rules and entity validation
+- If `handlers/` changes → mention permission assignment and sync workflows
+- If `repository/` changes → mention data persistence and Spanner operations
+- If `usecases/` changes → mention business logic and orchestration
+- If `locker/` changes → mention distributed locking and concurrency
+- If migrations present → include migration instructions
+- If new endpoints → mention API changes
+- If tests changed → emphasize coverage improvements
+- If config changed → highlight deployment requirements
+## PR types
+- feature, hotfix, migration
+
+## Project scopes
+- handlers, repository, locker, tracer, metric, utils, domain, usecase, ports, errs, bootstrap, migration, config, logger, http_errors
+
+## Auto-detection (support)
+- Type and title scope come from the branch prefix: `feature/`, `hotfix/`, `migration/`
+- File path scopes are used only to enrich the PR body context, not the title
+- Details and logic are in the sections above
+
+## Project standards and review
+- Detailed standards: [project-standards.mdc](mdc:.cursor/rules/project-standards.mdc)
+- Review guidelines: [pr-review-guidelines.mdc](mdc:.cursor/rules/pr-review-guidelines.mdc)
+
+## Branch constraints
+- feature/*: general code changes allowed
+- hotfix/*: general code changes allowed
+- migration/*: only files under `migrations/` may be modified
+
+## Repository documents
+- Coding: [CODING_GUIDELINES.md](mdc:CODING_GUIDELINES.md)
+- Contribution: [CONTRIBUTING.md](mdc:CONTRIBUTING.md)
+- README: [README.md](mdc:README.md)

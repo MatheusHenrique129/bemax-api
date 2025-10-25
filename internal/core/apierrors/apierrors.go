@@ -7,6 +7,11 @@ import (
 
 type CauseList []interface{}
 
+type FieldError struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
 type RestError interface {
 	Message() string
 	Error() string

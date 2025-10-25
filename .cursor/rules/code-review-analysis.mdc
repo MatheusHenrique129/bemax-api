@@ -1,0 +1,174 @@
+---
+description: Code Review Analysis Tool
+alwaysApply: false
+---
+# Code Review Analysis Tool 🔍
+
+## Purpose
+This rule provides automated code review analysis based on project standards when triggered by the `!review` command.
+
+## Trigger
+- `!review` - Analyzes code changes in the current branch against project standards
+- Case variations: `!REVIEW`, `!Review`, etc.
+
+## Analysis Scope
+When `!review` is triggered, the tool will:
+1. Identify all modified files in the current branch (including staged and unstaged changes)
+2. Analyze code changes against project standards:
+   - [project-standards.mdc](mdc:.cursor/rules/project-standards.mdc)
+   - [godoc-english-only.mdc](mdc:.cursor/rules/godoc-english-only.mdc)
+3. Generate a comprehensive review report
+
+## Analysis Areas 🎯
+
+### 1. Architecture Compliance 🏗️
+- Clean Architecture layer separation
+- Dependency direction validation
+- Core layer dependency constraints
+- Proper use of ports and adapters pattern
+
+### 2. Go Standards 📝
+- Import formatting (goimports compliance)
+- Function and variable naming conventions
+- Error handling patterns
+- Context usage
+- Line spacing rules
+- Constructor and dependency injection patterns
+- Cross-package reference validation (variables/constants within same package)
+
+### 3. Documentation Quality 📚
+- GoDoc documentation presence for exported functions
+- English-only GoDoc compliance
+- Documentation completeness for complex functions
+- Proper GoDoc formatting
+
+### 4. Code Quality 💎
+- SOLID principles adherence
+- DRY principle compliance
+- Return early pattern usage
+- Proper error wrapping with context
+- Security and validation practices
+
+### 5. Testing Standards 🧪
+- Test coverage for new/modified functions
+- Table-driven test patterns
+- Mock usage and dependency injection in tests
+
+## Report Format 📊
+
+The analysis will generate a markdown report with the following structure:
+
+```markdown
+# 🔍 Code Review Analysis Report
+
+## 📈 Overall Compliance Score
+- **Score**: X/100
+- **Status**: [Excellent | Good | Needs Improvement | Critical Issues]
+
+## ✅ Compliant Areas
+- Architecture: [details]
+- Go Standards: [details]
+- Documentation: [details]
+- Code Quality: [details]
+- Testing: [details]
+
+## ⚠️ Non-Compliant Areas
+### Architecture Issues 🏗️
+- **File**: `path/to/file.go:line`
+  - **Issue**: [description]
+  - **Rule**: [specific rule reference]
+  - **Severity**: [High | Medium | Low]
+  - **Suggestion**: [specific improvement recommendation]
+
+### Go Standards Issues 📝
+- **File**: `path/to/file.go:line`
+  - **Issue**: [description]
+  - **Rule**: [specific rule reference]
+  - **Severity**: [High | Medium | Low]
+  - **Suggestion**: [specific improvement recommendation]
+
+### Documentation Issues 📚
+- **File**: `path/to/file.go:line`
+  - **Issue**: [description]
+  - **Rule**: [specific rule reference]
+  - **Severity**: [High | Medium | Low]
+  - **Suggestion**: [specific improvement recommendation]
+
+### Code Quality Issues 💎
+- **File**: `path/to/file.go:line`
+  - **Issue**: [description]
+  - **Rule**: [specific rule reference]
+  - **Severity**: [High | Medium | Low]
+  - **Suggestion**: [specific improvement recommendation]
+
+### Testing Issues 🧪
+- **File**: `path/to/file.go:line`
+  - **Issue**: [description]
+  - **Rule**: [specific rule reference]
+  - **Severity**: [High | Medium | Low]
+  - **Suggestion**: [specific improvement recommendation]
+
+## 🎯 Priority Actions
+1. **High Priority**: [critical issues that must be fixed]
+2. **Medium Priority**: [important improvements]
+3. **Low Priority**: [nice-to-have enhancements]
+
+## 📝 Summary
+- **Total Files Analyzed**: X
+- **Issues Found**: X
+- **Critical Issues**: X
+- **Recommendations**: X
+
+## 🚀 Next Steps
+- [Actionable steps to improve code quality]
+- [Links to relevant documentation]
+- [Specific code examples where applicable]
+```
+
+## Implementation Guidelines 🛠️
+
+### Analysis Process
+1. **File Discovery**: Use git commands to identify modified files in the current branch
+2. **Content Analysis**: Read and analyze each modified file
+3. **Cross-Package Validation**: For undefined variables/constants, search within the same package directory for declarations before reporting as errors
+4. **Rule Application**: Apply each rule from project standards and documentation requirements
+5. **Issue Classification**: Categorize issues by severity and type
+6. **Report Generation**: Create comprehensive markdown report with actionable feedback
+
+### Cross-Package Reference Validation 🔍
+Before flagging undefined variables/constants as errors, the analysis must:
+1. **Search Same Package**: Use codebase search to find if the undefined identifier exists in other files within the same Go package
+2. **Package Boundary Check**: Only search within the same directory (Go package) for the identifier
+3. **Declaration Verification**: Confirm the identifier is declared as `var`, `const`, `type`, or `func`
+4. **Context Validation**: Ensure the identifier is accessible (not in different package or unexported from external package)
+
+**Example Process**:
+```
+Found undefined: errIntervalNotPositive in file transport/metric_default_roles_job.go
+→ Search in directory: internal/adapters/handlers/transport/
+→ Found in: transport/errors.go (declared as package-level var)
+→ Result: Valid cross-file reference within same package - NO ERROR
+```
+
+This prevents false positives for legitimate Go package-level declarations spread across multiple files.
+
+### Severity Levels
+- **High**: Critical issues that affect functionality, security, or architecture
+- **Medium**: Important standards violations that should be addressed
+- **Low**: Minor improvements that enhance code quality
+
+### Rule References
+Each issue should reference the specific rule violated:
+- `[project-standards.mdc](mdc:.cursor/rules/project-standards.mdc)` sections
+- `[godoc-english-only.mdc](mdc:.cursor/rules/godoc-english-only.mdc)` requirements
+
+## Usage Example 🎮
+
+When a user types `!review`, the tool will:
+1. Scan the current branch for changes
+2. Analyze all modified Go files
+3. Check compliance with all project standards
+4. Generate a detailed report with specific file references and line numbers
+5. Provide actionable suggestions for improvement
+
+The report will be comprehensive yet focused, highlighting both strengths and areas for improvement in the codebase changes.

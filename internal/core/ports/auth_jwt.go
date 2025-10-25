@@ -10,6 +10,7 @@ import (
 )
 
 type AuthJWT interface {
+	GetTTL() time.Duration
 	GenerateToken(userID uuid.UUID, email string, roles []auth.Role, ttl time.Duration) (dto.GetTokenResponse, apierrors.RestError)
 	ValidateToken(tokenString string) (*auth.Claims, apierrors.RestError)
 }

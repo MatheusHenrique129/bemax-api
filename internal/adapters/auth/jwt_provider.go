@@ -22,6 +22,13 @@ type jwtAdapter struct {
 	expiresAt time.Duration
 }
 
+func (j *jwtAdapter) GetTTL() time.Duration {
+	if j.expiresAt <= 0 {
+		return _defaultExpires
+	}
+	return j.expiresAt
+}
+
 func (j *jwtAdapter) GenerateToken(userID uuid.UUID, email string, roles []domain.Role, ttl time.Duration) (dto.GetTokenResponse, apierrors.RestError) {
 	if ttl <= 0 {
 		ttl = _defaultExpires
