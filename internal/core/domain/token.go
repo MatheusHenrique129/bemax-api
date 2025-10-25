@@ -20,33 +20,36 @@ type Token struct {
 
 type Claims struct {
 	jwt.RegisteredClaims
-	Email     string    `json:"email"`
-	TokenType TokenType `json:"token_type"`
-	Roles     []Role    `json:"roles"`
-	UserID    uuid.UUID `json:"user_id"`
-}
-
-type Session struct {
-	ExpiresAt time.Time
-	Email     string
-	TokenType TokenType
-	Roles     []Role
-	UserID    uuid.UUID
+	Email        string    `json:"email"`
+	TokenType    TokenType `json:"token_type"`
+	Roles        []Role    `json:"roles"`
+	UserID       uuid.UUID `json:"user_id"`
+	TokenVersion int       `json:"token_version"`
+	SessionID    string    `json:"session_id"`
 }
 
 func (t *Token) IsExpired() bool {
 	return time.Now().After(t.ExpiresAt)
 }
 
-func NewTokenUserClaims(userID uuid.UUID, email string, tokenType TokenType, roles []Role, ttl time.Duration) *Claims {
+func NewTokenUserClaims(
+	userID uuid.UUID,
+	email string,
+	tokenType TokenType,
+	roles []Role, ttl time.Duration,
+	tokenVersion int,
+	sessionID string,
+) *Claims {
 	tokenID := uuid.New()
 	now := time.Now().UTC()
 
 	return &Claims{
-		UserID:    userID,
-		Email:     email,
-		Roles:     roles,
-		TokenType: tokenType,
+		UserID:       userID,
+		Email:        email,
+		Roles:        roles,
+		TokenType:    tokenType,
+		TokenVersion: tokenVersion,
+		SessionID:    sessionID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        tokenID.String(),
 			Subject:   email,

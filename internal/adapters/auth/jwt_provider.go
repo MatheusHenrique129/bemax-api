@@ -14,38 +14,39 @@ import (
 )
 
 const (
-	_defaultExpires = time.Hour * 12
+	_defaultExpires = time.Hour * 2
 )
 
 type jwtAdapter struct {
 	secretKey string
+	logger    ports.Logger
 	expiresAt time.Duration
 }
 
-func (j *jwtAdapter) GetTTL() time.Duration {
+func (j *jwtAdapter) getTTL() time.Duration {
 	if j.expiresAt <= 0 {
 		return _defaultExpires
 	}
 	return j.expiresAt
 }
 
-func (j *jwtAdapter) GenerateToken(userID uuid.UUID, email string, roles []domain.Role, ttl time.Duration) (dto.GetTokenResponse, apierrors.RestError) {
-	if ttl <= 0 {
-		ttl = _defaultExpires
-	}
+func (j *jwtAdapter) GenerateToken(userID uuid.UUID, email string, roles []domain.Role, tokenVersion int, sessionID string) (dto.GetTokenResponse, apierrors.RestError) {
+	ttl := j.getTTL()
 
-	claims := domain.NewTokenUserClaims(userID, email, core.TokenTypeBearer, roles, ttl)
+	claims := domain.NewTokenUserClaims(userID, email, core.TokenTypeBearer, roles, ttl, tokenVersion, sessionID)
 
 	// TODO Change to SigningMethodRS256
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString([]byte(j.secretKey))
 	if err != nil {
+		j.logger.Error("error generating token", err)
 		return dto.GetTokenResponse{}, apierrors.NewInternalServerRestError("error trying to sign the token", err)
 	}
 
 	return dto.GetTokenResponse{
 		Token:     signed,
-		Timestamp: time.Now().UTC().Local(),
+		TokenJTI:  claims.ID,
+		Timestamp: time.Now().UTC(),
 		ExpireAt:  ttl,
 	}, nil
 }
@@ -79,8 +80,13 @@ func (j *jwtAdapter) ValidateToken(tokenString string) (*domain.Claims, apierror
 	return claims, nil
 }
 
-func NewJWTAdapter(secretKey string, expires time.Duration) ports.AuthJWT {
+func NewJWTAdapter(
+	logger ports.Logger,
+	secretKey string,
+	expires time.Duration,
+) ports.AuthJWT {
 	return &jwtAdapter{
+		logger:    logger,
 		secretKey: secretKey,
 		expiresAt: expires,
 	}

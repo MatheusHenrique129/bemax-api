@@ -7,6 +7,7 @@ var (
 	ErrRoleNotFound         = errors.New("role not found")
 	ErrUserNotFound         = errors.New("user not found")
 	ErrLoginNotFound        = errors.New("login not found")
+	ErrTokenNotFound        = errors.New("token not found")
 	ErrNoRowsAffected       = errors.New("no rows affected")
 	ErrRolesForUserNotFound = errors.New("no roles found for user")
 )

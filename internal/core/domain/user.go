@@ -21,19 +21,20 @@ const (
 type Status string
 
 type User struct {
-	BirthDate time.Time  `json:"birth_date"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	CreatedAt time.Time  `json:"created_at"`
-	LastLogin *time.Time `json:"last_login"`
-	Password  string     `json:"-"`
-	Phone     string     `json:"phone"`
-	Status    Status     `json:"status"`
-	CPF       string     `json:"cpf"`
-	Email     string     `json:"email"`
-	FullName  string     `json:"full_name"`
-	Addresses []Address  `json:"addresses"`
-	Roles     []Role     `json:"roles"`
-	ID        uuid.UUID  ``
+	BirthDate    time.Time  `json:"birth_date"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	LastLogin    *time.Time `json:"last_login"`
+	Password     string     `json:"-"`
+	Phone        string     `json:"phone"`
+	Status       Status     `json:"status"`
+	CPF          string     `json:"cpf"`
+	Email        string     `json:"email"`
+	FullName     string     `json:"full_name"`
+	Addresses    []Address  `json:"addresses"`
+	Roles        []Role     `json:"roles"`
+	ID           uuid.UUID  ``
+	TokenVersion int        `json:"-"`
 }
 
 func (u *User) Activate() {

@@ -3,6 +3,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
 	_ "github.com/go-sql-driver/mysql"
@@ -21,6 +22,12 @@ func NewMysql(config ports.MysqlConfig) (dbClient *sql.DB, err error) {
 		_ = fmt.Errorf("could not create the database connection: %v", err)
 		return nil, err
 	}
+
+	// TODO validate if is necessary?
+	dbClient.SetMaxIdleConns(25)
+	dbClient.SetMaxIdleConns(5)
+	dbClient.SetConnMaxLifetime(5 * time.Minute)
+	dbClient.SetConnMaxIdleTime(1 * time.Minute)
 
 	fmt.Println("successfully connected to MySQL database")
 	return dbClient, nil

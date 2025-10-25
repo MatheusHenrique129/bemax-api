@@ -12,6 +12,26 @@ DROP TABLE IF EXISTS LOGIN_ATTEMPTS;
 DROP TABLE IF EXISTS TOKENS;
 DROP TABLE IF EXISTS ROLES;
 DROP TABLE IF EXISTS USERS;
+DROP TABLE IF EXISTS ACTIVE_SESSIONS;
+
+CREATE TABLE ACTIVE_SESSIONS (
+    id CHAR(36) PRIMARY KEY,
+    user_id CHAR(36) NOT NULL,
+    session_id VARCHAR(100) NOT NULL UNIQUE,
+    last_access_token_jti VARCHAR(255) NOT NULL,
+    device_info TEXT,
+    ip_address VARCHAR(50),
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_refreshed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
+    INDEX idx_sessions_user (user_id),
+    INDEX idx_sessions_session_id (session_id),
+    INDEX idx_sessions_jti (last_access_token_jti),
+    INDEX idx_sessions_active (user_id, is_active, expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE USERS (
    id CHAR(36) NOT NULL PRIMARY KEY,
@@ -23,10 +43,12 @@ CREATE TABLE USERS (
    phone VARCHAR(20) NOT NULL,
    last_login TIMESTAMP NULL,
    status VARCHAR(10) NOT NULL DEFAULT 'active',
+   token_version INT NOT NULL DEFAULT 1,
    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
    INDEX idx_user_email (email),
-   INDEX idx_user_cpf (cpf)
+   INDEX idx_user_cpf (cpf),
+   INDEX idx_users_token_version (id, token_version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE ROLES (
@@ -68,7 +90,7 @@ CREATE TABLE ADDRESSES (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
     FOREIGN KEY (state_id) REFERENCES STATES(id),
-    INDEX idx_ADDRESSES_user (user_id)
+    INDEX idx_addresses_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE TOKENS (
@@ -92,6 +114,6 @@ CREATE TABLE LOGIN_ATTEMPTS (
     failure_reason VARCHAR(100) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_LOGIN_ATTEMPTS_EMAIL (email),
-    INDEX idx_LOGIN_ATTEMPTS_CREATED_AT (created_at)
+    INDEX idx_LOGIN_ATTEMPTS_CREATED_AT (created_at),
     INDEX idx_LOGIN_ATTEMPTS_IP (ip_address)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

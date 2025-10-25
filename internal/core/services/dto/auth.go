@@ -22,6 +22,10 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required" validate:"required,min=6,max=80"`
 }
 
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required" validate:"required"`
+}
+
 func (s UserRegisterRequest) Validate() (time.Time, apierrors.RestError) {
 	var causes apierrors.CauseList
 
@@ -90,14 +94,15 @@ type UserRegisterResponse struct {
 }
 
 type LoginResponse struct {
-	AccessToken  string           `json:"access_token"`
-	RefreshToken string           `json:"refresh_token"`
-	TokenType    string           `json:"token_type"`
-	Token        GetTokenResponse `json:"token"`
+	AccessToken  string        `json:"access_token"`
+	RefreshToken string        `json:"refresh_token"`
+	TokenType    string        `json:"token_type"`
+	ExpiresIn    time.Duration `json:"expires_in"`
 }
 
 type GetTokenResponse struct {
 	Token     string        `json:"token"`
+	TokenJTI  string        `json:"token_jti"`
 	Timestamp time.Time     `json:"timestamp"`
 	ExpireAt  time.Duration `json:"expire_at"`
 }

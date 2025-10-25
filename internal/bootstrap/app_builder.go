@@ -36,16 +36,18 @@ func BuildAppDependencies(vLogger ports.Logger, cfg ports.Configuration) *AppBui
 	userRepositoryPort := mysql.NewMysqlUserRepository(vLogger, dbClientAdapter)
 	tokenRepositoryPort := mysql.NewMysqlTokenRepository(vLogger, dbClientAdapter)
 	roleRepositoryPort := mysql.NewMysqlRoleRepository(vLogger, dbClientAdapter)
+	sessionRepositoryPort := mysql.NewMysqlSessionRepository(vLogger, dbClientAdapter)
 	userRoleRepositoryPort := mysql.NewMysqlUserRoleRepository(vLogger, dbClientAdapter)
 
 	// Adapters
 	vLogger.Info(fmt.Sprintf("Creating JWT keys with secret: %s and ttl %v", cfg.Auth.JWT.Secret, cfg.Auth.JWT.TTL))
-	jwtAdapter := auth.NewJWTAdapter(cfg.Auth.JWT.Secret, cfg.Auth.JWT.TTL)
+	jwtAdapter := auth.NewJWTAdapter(vLogger, cfg.Auth.JWT.Secret, cfg.Auth.JWT.TTL)
 
 	// Services
 	roleService := services.NewRoleService(vLogger, roleRepositoryPort, userRoleRepositoryPort)
 	userService := services.NewUserService(vLogger, userRepositoryPort, roleService)
-	authService := services.NewAuthTokenService(vLogger, jwtAdapter, userService, tokenRepositoryPort)
+	sessionService := services.NewSessionService(vLogger, sessionRepositoryPort)
+	authService := services.NewAuthTokenService(vLogger, jwtAdapter, userService, roleService, sessionService, tokenRepositoryPort)
 
 	// Middlewares
 	authMiddleware := middleware.NewAuthMiddleware(vLogger, jwtAdapter, authService)

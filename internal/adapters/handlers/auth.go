@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/MatheusHenrique129/bemax-api/internal/adapters/constants"
@@ -19,6 +18,9 @@ import (
 type AuthHandler interface {
 	Login(w http.ResponseWriter, r *http.Request)
 	RegistryUser(w http.ResponseWriter, r *http.Request)
+	RefreshToken(w http.ResponseWriter, r *http.Request)
+	Logout(w http.ResponseWriter, r *http.Request)
+	LogoutAllDevices(w http.ResponseWriter, r *http.Request)
 }
 
 type authHandler struct {
@@ -39,12 +41,18 @@ func (a authHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, refreshToken, err := a.authService.Login(
+	deviceInfo := r.Header.Get("X-Device-Info")
+	if deviceInfo == "" {
+		deviceInfo = "Unknown Device"
+	}
+
+	accessToken, refreshToken, expiresIn, err := a.authService.Login(
 		ctx,
 		req.Email,
 		req.Password,
 		util.GetClientIP(r),
 		r.Header.Get(middleware.UserAgentHeaderKey),
+		deviceInfo,
 	)
 
 	if err != nil {
@@ -57,10 +65,10 @@ func (a authHandler) Login(w http.ResponseWriter, r *http.Request) {
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    string(core.TokenTypeBearer),
+		ExpiresIn:    expiresIn,
 	}
 
 	w.Header().Set(constants.ContentTypeHeaderKey, constants.ContentTypeApplicationJSON)
-	w.Header().Set(middleware.AuthHeaderKey, fmt.Sprintf("Bearer %s", accessToken))
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
@@ -102,9 +110,82 @@ func (a authHandler) RegistryUser(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: newUser.UpdatedAt,
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(response)
 
+}
+
+func (a authHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req dto.RefreshTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		a.logger.Error("error decoding request body: %v", err, err.Error())
+		formatErr := apierrors.NewBadRequestRestError("invalid request body")
+		http_errors.ErrorHandler(w, formatErr)
+		return
+	}
+
+	accessToken, refreshToken, expiresIn, err := a.authService.RefreshAccessToken(ctx, req.RefreshToken)
+	if err != nil {
+		http_errors.ErrorHandler(w, err)
+		return
+	}
+
+	response := dto.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    string(core.TokenTypeBearer),
+		ExpiresIn:    expiresIn,
+	}
+
+	w.Header().Set(constants.ContentTypeHeaderKey, constants.ContentTypeApplicationJSON)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+func (a authHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req dto.RefreshTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		a.logger.Error("error decoding request body for logout", err)
+		formatErr := apierrors.NewBadRequestRestError("invalid request body")
+		http_errors.ErrorHandler(w, formatErr)
+		return
+	}
+
+	if err := a.authService.Logout(ctx, req.RefreshToken); err != nil {
+		http_errors.ErrorHandler(w, err)
+		return
+	}
+
+	w.Header().Set(constants.ContentTypeHeaderKey, constants.ContentTypeApplicationJSON)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"message": "logged out successfully",
+	})
+}
+
+func (a authHandler) LogoutAllDevices(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	sessionKey, ok := middleware.GetClaimsFromContext(ctx)
+	if !ok {
+		http_errors.ErrorHandler(w, apierrors.NewUnauthorizedRestError("invalid session"))
+		return
+	}
+
+	if err := a.authService.LogoutAllDevices(ctx, sessionKey.UserID); err != nil {
+		http_errors.ErrorHandler(w, err)
+		return
+	}
+
+	w.Header().Set(constants.ContentTypeHeaderKey, constants.ContentTypeApplicationJSON)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"message": "logged out from all devices successfully",
+	})
 }
 
 func NewAuthHandler(

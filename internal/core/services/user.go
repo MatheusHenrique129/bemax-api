@@ -12,10 +12,10 @@ import (
 	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/services/dto"
 	"github.com/MatheusHenrique129/bemax-api/pkg/cpf"
+	"github.com/google/uuid"
 )
 
 var (
-	ErrUserNotFound         = errors.New("user not found")
 	ErrUserInactive         = errors.New("user is inactive")
 	ErrCPFAlreadyExists     = errors.New("cpf already exists")
 	ErrInvalidCredentials   = errors.New("invalid credentials")
@@ -23,14 +23,33 @@ var (
 )
 
 type UserService interface {
+	GetUserByID(ctx context.Context, id uuid.UUID) (domain.User, apierrors.RestError)
 	CreateUser(ctx context.Context, dataReq dto.UserRegisterRequest) (domain.User, apierrors.RestError)
 	AuthenticateUser(ctx context.Context, email, password string, ipAddress, userAgent string) (*domain.User, apierrors.RestError)
+
+	GetTokenVersion(ctx context.Context, userID uuid.UUID) (int, apierrors.RestError)
+	IncrementTokenVersion(ctx context.Context, userID uuid.UUID) apierrors.RestError
 }
 
 type userService struct {
 	logger         ports.Logger
 	userRepository ports.UserRepository
 	roleService    RoleService
+}
+
+func (u userService) GetUserByID(ctx context.Context, id uuid.UUID) (domain.User, apierrors.RestError) {
+	user, err := u.userRepository.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, mysql.ErrUserNotFound) {
+			u.logger.Error(fmt.Sprintf("user not found with id %s.", id), err)
+			return domain.User{}, apierrors.NewNotFoundRestError(err.Error())
+		}
+
+		u.logger.Error(fmt.Sprintf("error getting user with id %s.", id), err)
+		return domain.User{}, apierrors.NewInternalServerRestError(fmt.Sprintf("error finding user by id: %s.", id), err)
+	}
+
+	return user, nil
 }
 
 func (u userService) CreateUser(ctx context.Context, userRegister dto.UserRegisterRequest) (domain.User, apierrors.RestError) {
@@ -85,7 +104,7 @@ func (u userService) CreateUser(ctx context.Context, userRegister dto.UserRegist
 }
 
 func (u userService) AuthenticateUser(ctx context.Context, email, password string, ipAddress, userAgent string) (*domain.User, apierrors.RestError) {
-	blocked, err := u.checkRateLimit(ctx, email, 15)
+	blocked, err := u.checkRateLimit(ctx, email, 5)
 	if err != nil {
 		return nil, apierrors.NewInternalServerRestError("error checking rate limit", err)
 	}
@@ -100,12 +119,13 @@ func (u userService) AuthenticateUser(ctx context.Context, email, password strin
 
 	user, err := u.userRepository.FindByEmail(ctx, email)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		u.logger.Error(fmt.Sprintf("error getting user with email %s.", email), err)
+		if errors.Is(err, mysql.ErrUserNotFound) {
 			if recordErr := u.recordFailedAttempt(ctx, email, ipAddress, userAgent); recordErr != nil {
 				u.logger.Error("critical: failed to record failed attempt", recordErr)
 				return nil, apierrors.NewInternalServerRestError("authentication system error", recordErr)
 			}
-			return nil, apierrors.NewNotFoundRestError(ErrUserNotFound.Error())
+			return nil, apierrors.NewNotFoundRestError(err.Error())
 		}
 
 		u.logger.Error(fmt.Sprintf("error finding user by email %s", email), err)
@@ -153,12 +173,48 @@ func (u userService) AuthenticateUser(ctx context.Context, email, password strin
 	return &user, nil
 }
 
+func (u userService) GetTokenVersion(ctx context.Context, userID uuid.UUID) (int, apierrors.RestError) {
+	version, err := u.userRepository.GetTokenVersion(ctx, userID)
+	if err != nil {
+		if errors.Is(err, mysql.ErrUserNotFound) {
+			return 0, apierrors.NewNotFoundRestError("user not found")
+		}
+		u.logger.Error(fmt.Sprintf("error getting token version for user %s", userID), err)
+		return 0, apierrors.NewInternalServerRestError("error getting token version", err)
+	}
+
+	return version, nil
+}
+
+func (u userService) IncrementTokenVersion(ctx context.Context, userID uuid.UUID) apierrors.RestError {
+	err := u.userRepository.IncrementTokenVersion(ctx, userID)
+	if err != nil {
+		if errors.Is(err, mysql.ErrUserNotFound) {
+			return apierrors.NewNotFoundRestError("user not found")
+		}
+		u.logger.Error(fmt.Sprintf("error incrementing token version for user %s", userID), err)
+		return apierrors.NewInternalServerRestError("error incrementing token version", err)
+	}
+
+	return nil
+}
+
 func (u userService) checkRateLimit(ctx context.Context, email string, minutes int) (bool, error) {
 	attempts, err := u.userRepository.GetLoginAttempts(ctx, email, minutes)
 	if err != nil && !errors.Is(err, mysql.ErrLoginNotFound) {
 		return false, err
 	}
-	return attempts >= 5, nil
+
+	switch {
+	case minutes <= 1 && attempts >= 3:
+		return true, nil
+	case minutes <= 5 && attempts >= 5:
+		return true, nil
+	case minutes <= 15 && attempts >= 10:
+		return true, nil
+	default:
+		return false, nil
+	}
 }
 
 func (u userService) recordFailedAttempt(ctx context.Context, email, ipAddress, userAgent string) error {
