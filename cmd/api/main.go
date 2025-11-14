@@ -11,18 +11,17 @@ import (
 
 func main() {
 	fmt.Println("initializing the application...")
-
 	configAdapter := config.NewViperConfigAdapter()
 
 	cfg, err := configAdapter.LoadConfiguration()
 	if err != nil {
-		fmt.Printf("error loading configuration: %s", err.Error())
+		fmt.Printf("error loading configuration: %s\n", err.Error())
+		return
 	}
 
 	logLevel := logger.LogLevel(cfg.LogLevel)
 	loggerAdapter := logger.NewZapLoggerAdapter(logLevel)
 
-	// Run the application
 	loggerAdapter.Info("logger initialized")
 	if err := runApp(loggerAdapter, cfg); err != nil {
 		loggerAdapter.Fatal("failed to run application: %v", err)
@@ -33,7 +32,10 @@ func main() {
 // runs background jobs, and starts the HTTP server.
 func runApp(vLogger ports.Logger, cfg ports.Configuration) error {
 	// Load all core dependencies (use cases, repositories, handlers)
-	appBuilder := bootstrap.BuildAppDependencies(vLogger, cfg)
+	appBuilder, err := bootstrap.BuildAppDependencies(vLogger, cfg)
+	if err != nil {
+		return err
+	}
 
 	// Register all HTTP routes into the web application
 	routes := bootstrap.RegisterRoutes(appBuilder)

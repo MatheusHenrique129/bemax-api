@@ -12,6 +12,7 @@ type SessionRepository interface {
 	CreateSession(ctx context.Context, session *domain.Session) error
 	UpdateSession(ctx context.Context, session *domain.Session) error
 	FindBySessionID(ctx context.Context, sessionID string) (*domain.Session, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*domain.Session, error)
 	FindActiveUserSessions(ctx context.Context, userID uuid.UUID) ([]domain.Session, error)
 
 	// Access token validation
@@ -24,4 +25,5 @@ type SessionRepository interface {
 
 	// Cleanup
 	DeleteExpiredSessions(ctx context.Context) error
+	UpdateSessionRiskScore(ctx context.Context, sessionID string, riskScore int64, isSuspicious bool) error
 }

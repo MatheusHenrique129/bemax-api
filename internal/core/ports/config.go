@@ -12,8 +12,8 @@ type Config interface {
 type Configuration struct {
 	LogLevel string  `mapstructure:"log_level" json:"log_level"`
 	Server   Server  `mapstructure:"server" json:"server"`
-	Auth     Auth    `mapstructure:"auth"`
-	Storage  Storage `mapstructure:"storage"`
+	Auth     Auth    `mapstructure:"auth" json:"auth"`
+	Storage  Storage `mapstructure:"storage" json:"storage"`
 }
 
 type Server struct {
@@ -24,24 +24,30 @@ type Server struct {
 }
 
 type Auth struct {
-	JWT JWTConfig `mapstructure:"jwt"`
+	JWT      JWTConfig      `mapstructure:"jwt" json:"jwt"`
+	Firebase FirebaseConfig `mapstructure:"firebase" json:"firebase"`
 }
 
 type JWTConfig struct {
-	Secret string        `mapstructure:"secret"`
-	TTL    time.Duration `mapstructure:"ttl"`
+	Secret string        `mapstructure:"secret" json:"secret"`
+	TTL    time.Duration `mapstructure:"ttl" json:"ttl"`
+}
+
+type FirebaseConfig struct {
+	ProjectID       string `mapstructure:"project_id" json:"project_id"`
+	CredentialsPath string `mapstructure:"credentials_path" json:"credentials_path"`
 }
 
 type Storage struct {
-	MySQL MysqlConfig `mapstructure:"mysql"`
+	MySQL MysqlConfig `mapstructure:"mysql" json:"mysql"`
 }
 
 type MysqlConfig struct {
-	DriverName   string `mapstructure:"driver_name"`
-	DBName       string `mapstructure:"db_name"`
-	HostName     string `mapstructure:"hostname"`
-	UserName     string `mapstructure:"user_name"`
-	UserPassword string `mapstructure:"user_password"`
+	DriverName   string `mapstructure:"driver_name" json:"driver_name"`
+	DBName       string `mapstructure:"db_name" json:"db_name"`
+	HostName     string `mapstructure:"hostname" json:"host_name"`
+	UserName     string `mapstructure:"user_name" json:"user_name"`
+	UserPassword string `mapstructure:"user_password" json:"user_password"`
 }
 
 // Default values for configuration
@@ -51,4 +57,7 @@ const (
 	DefaultAppIdleTimeoutMs  = 70
 	DefaultAppReadTimeoutMs  = 200
 	DefaultAppWriteTimeoutMs = 200
+
+	DefaultFirebaseProjectID       = "myapp"
+	DefaultFirebaseCredentialsPath = "myapp"
 )

@@ -2,8 +2,10 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/MatheusHenrique129/bemax-api/internal/adapters/persistence/mysql"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/apierrors"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/domain"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
@@ -15,6 +17,7 @@ type SessionService interface {
 	ValidateSessionToken(ctx context.Context, sessionID, tokenJTI string) apierrors.RestError
 	UpdateSessionToken(ctx context.Context, sessionID, tokenJTI string) apierrors.RestError
 	GetUserSessions(ctx context.Context, userID uuid.UUID) ([]domain.Session, apierrors.RestError)
+	GetSessionByID(ctx context.Context, sessionID uuid.UUID) (*domain.Session, apierrors.RestError)
 	TerminateSession(ctx context.Context, sessionID string) apierrors.RestError
 	TerminateAllUserSessions(ctx context.Context, userID uuid.UUID) apierrors.RestError
 }
@@ -68,6 +71,20 @@ func (s *sessionService) GetUserSessions(ctx context.Context, userID uuid.UUID) 
 	}
 
 	return sessions, nil
+}
+
+func (s *sessionService) GetSessionByID(ctx context.Context, sessionID uuid.UUID) (*domain.Session, apierrors.RestError) {
+	session, err := s.sessionRepo.FindByID(ctx, sessionID)
+	if err != nil {
+		if errors.Is(err, mysql.ErrSessionNotFound) {
+			return nil, apierrors.NewNotFoundRestError(err.Error())
+		}
+
+		s.logger.Error("failed to get session by ID", err)
+		return nil, apierrors.NewInternalServerRestError("failed to get session", err)
+	}
+
+	return session, nil
 }
 
 func (s *sessionService) TerminateSession(ctx context.Context, sessionID string) apierrors.RestError {

@@ -17,6 +17,7 @@ import (
 
 type AuthHandler interface {
 	Login(w http.ResponseWriter, r *http.Request)
+	LoginWithFirebase(w http.ResponseWriter, r *http.Request)
 	RegistryUser(w http.ResponseWriter, r *http.Request)
 	RefreshToken(w http.ResponseWriter, r *http.Request)
 	Logout(w http.ResponseWriter, r *http.Request)
@@ -24,10 +25,11 @@ type AuthHandler interface {
 }
 
 type authHandler struct {
-	logger      ports.Logger
-	authJWT     ports.AuthJWT
-	userService services.UserService
-	authService services.AuthTokenService
+	logger          ports.Logger
+	authJWT         ports.AuthJWT
+	userService     services.UserService
+	authService     services.AuthTokenService
+	firebaseService services.FirebaseService
 }
 
 func (a authHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +48,7 @@ func (a authHandler) Login(w http.ResponseWriter, r *http.Request) {
 		deviceInfo = "Unknown Device"
 	}
 
-	accessToken, refreshToken, expiresIn, err := a.authService.Login(
+	response, err := a.authService.Login(
 		ctx,
 		req.Email,
 		req.Password,
@@ -61,15 +63,43 @@ func (a authHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := dto.LoginResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		TokenType:    string(core.TokenTypeBearer),
-		ExpiresIn:    expiresIn,
+	w.Header().Set(constants.ContentTypeHeaderKey, constants.ContentTypeApplicationJSON)
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+func (a authHandler) LoginWithFirebase(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req dto.FirebaseLoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		a.logger.Error("error decoding Firebase login request body: %v", err, err.Error())
+		formatErr := apierrors.NewBadRequestRestError("invalid request body.")
+		http_errors.ErrorHandler(w, formatErr)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		http_errors.ErrorHandler(w, err)
+		return
+	}
+
+	response, err := a.firebaseService.LoginWithFirebase(
+		ctx,
+		req.IDToken,
+		util.GetClientIP(r),
+		r.Header.Get(middleware.UserAgentHeaderKey),
+		req.DeviceInfo,
+	)
+
+	if err != nil {
+		a.logger.Error("Firebase login failed", err)
+		http_errors.ErrorHandler(w, err)
+		return
 	}
 
 	w.Header().Set(constants.ContentTypeHeaderKey, constants.ContentTypeApplicationJSON)
-
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
 }
@@ -105,7 +135,7 @@ func (a authHandler) RegistryUser(w http.ResponseWriter, r *http.Request) {
 		FullName:  newUser.FullName,
 		CPF:       newUser.CPF,
 		Phone:     newUser.Phone,
-		DateBirth: newUser.BirthDate,
+		DateBirth: *newUser.BirthDate,
 		CreatedAt: newUser.CreatedAt,
 		UpdatedAt: newUser.UpdatedAt,
 	}
@@ -193,11 +223,13 @@ func NewAuthHandler(
 	authJWT ports.AuthJWT,
 	userService services.UserService,
 	authService services.AuthTokenService,
+	firebaseService services.FirebaseService,
 ) AuthHandler {
 	return &authHandler{
-		logger:      logger,
-		authJWT:     authJWT,
-		userService: userService,
-		authService: authService,
+		logger:          logger,
+		authJWT:         authJWT,
+		userService:     userService,
+		authService:     authService,
+		firebaseService: firebaseService,
 	}
 }

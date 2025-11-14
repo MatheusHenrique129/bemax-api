@@ -22,25 +22,37 @@ func (m mysqlUserRepository) Create(ctx context.Context, user domain.User) error
 			id,
 			email,
 		    password_hash,
+		    auth_provider,
 		    full_name,
 		    cpf,
 		    birth_date,
 		    phone,
+		    profile_picture,
+		    email_verified,
+		    phone_verified,
+		    profile_completed,
 			status,
+			token_version,
 		    created_at,
 		    updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	row, err := m.dbClient.ExecContext(ctx, query,
 		user.ID,
 		user.Email,
 		user.Password,
+		user.AuthProvider,
 		user.FullName,
 		user.CPF,
 		user.BirthDate,
 		user.Phone,
+		user.ProfilePicture,
+		user.EmailVerified,
+		user.PhoneVerified,
+		user.ProfileCompleted,
 		user.Status,
+		user.TokenVersion,
 		time.Now().UTC(),
 		time.Now().UTC(),
 	)
@@ -59,16 +71,61 @@ func (m mysqlUserRepository) Create(ctx context.Context, user domain.User) error
 	return nil
 }
 
+func (m mysqlUserRepository) Update(ctx context.Context, user domain.User) error {
+	query := `
+		UPDATE users 
+		SET full_name = ?,
+		    cpf = ?,
+		    phone = ?,
+		    birth_date = ?,
+		    profile_picture = ?,
+		    profile_completed = ?,
+		    updated_at = ?
+		WHERE id = ?
+`
+
+	now := time.Now().UTC()
+	result, err := m.dbClient.ExecContext(ctx, query,
+		user.FullName,
+		sql.NullString{String: user.CPF, Valid: user.CPF != ""},
+		sql.NullString{String: user.Phone, Valid: user.Phone != ""},
+		sql.NullTime{Time: *user.BirthDate, Valid: !user.BirthDate.IsZero()},
+		sql.NullString{String: user.ProfilePicture, Valid: user.ProfilePicture != ""},
+		user.ProfileCompleted,
+		now,
+		user.ID,
+	)
+
+	if err != nil {
+		m.logger.Error("error updating user profile", err)
+		return fmt.Errorf("failed to update user profile: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil || rows < 1 {
+		m.logger.Error("no rows affected during profile update", err)
+		return ErrNoRowsAffected
+	}
+
+	return nil
+}
+
 func (m mysqlUserRepository) FindByID(ctx context.Context, id uuid.UUID) (domain.User, error) {
 	query := `
 		SELECT 
 		    id,
 		    email,
 		    password_hash,
+		    auth_provider,
 		    full_name,
 		    cpf,
 		    birth_date,
-		    phone, 
+		    phone,
+		    profile_picture,
+		    email_verified,
+		    phone_verified,
+		    profile_completed,
+		    last_login,
 		    status,
 		    token_version,
 		    created_at,
@@ -78,19 +135,44 @@ func (m mysqlUserRepository) FindByID(ctx context.Context, id uuid.UUID) (domain
 	`
 
 	var res domain.User
+	var cpfNull, phoneNull, profilePictureNull sql.NullString
+	var birthDateNull, lastLoginNull sql.NullTime
+
 	err := m.dbClient.QueryRowContext(ctx, query, id).Scan(
 		&res.ID,
 		&res.Email,
 		&res.Password,
+		&res.AuthProvider,
 		&res.FullName,
-		&res.CPF,
-		&res.BirthDate,
-		&res.Phone,
+		&cpfNull,
+		&birthDateNull,
+		&phoneNull,
+		&profilePictureNull,
+		&res.EmailVerified,
+		&res.PhoneVerified,
+		&res.ProfileCompleted,
+		&lastLoginNull,
 		&res.Status,
 		&res.TokenVersion,
 		&res.CreatedAt,
 		&res.UpdatedAt,
 	)
+
+	if cpfNull.Valid {
+		res.CPF = cpfNull.String
+	}
+	if phoneNull.Valid {
+		res.Phone = phoneNull.String
+	}
+	if profilePictureNull.Valid {
+		res.ProfilePicture = profilePictureNull.String
+	}
+	if birthDateNull.Valid {
+		res.BirthDate = &birthDateNull.Time
+	}
+	if lastLoginNull.Valid {
+		res.LastLogin = &lastLoginNull.Time
+	}
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -110,10 +192,16 @@ func (m mysqlUserRepository) FindByCPF(ctx context.Context, cpf string) (domain.
 			id,
 		    email,
 		    password_hash,
+		    auth_provider,
 		    full_name,
 		    cpf,
 		    birth_date,
 		    phone,
+		    profile_picture,
+		    email_verified,
+		    phone_verified,
+		    profile_completed,
+		    last_login,
 		    status,
 		    token_version,
 		    created_at,
@@ -123,19 +211,44 @@ func (m mysqlUserRepository) FindByCPF(ctx context.Context, cpf string) (domain.
 	`
 
 	var res domain.User
+	var cpfNull, phoneNull, profilePictureNull sql.NullString
+	var birthDateNull, lastLoginNull sql.NullTime
+
 	err := m.dbClient.QueryRowContext(ctx, query, cpf).Scan(
 		&res.ID,
 		&res.Email,
 		&res.Password,
+		&res.AuthProvider,
 		&res.FullName,
-		&res.CPF,
-		&res.BirthDate,
-		&res.Phone,
+		&cpfNull,
+		&birthDateNull,
+		&phoneNull,
+		&profilePictureNull,
+		&res.EmailVerified,
+		&res.PhoneVerified,
+		&res.ProfileCompleted,
+		&lastLoginNull,
 		&res.Status,
 		&res.TokenVersion,
 		&res.CreatedAt,
 		&res.UpdatedAt,
 	)
+
+	if cpfNull.Valid {
+		res.CPF = cpfNull.String
+	}
+	if phoneNull.Valid {
+		res.Phone = phoneNull.String
+	}
+	if profilePictureNull.Valid {
+		res.ProfilePicture = profilePictureNull.String
+	}
+	if birthDateNull.Valid {
+		res.BirthDate = &birthDateNull.Time
+	}
+	if lastLoginNull.Valid {
+		res.LastLogin = &lastLoginNull.Time
+	}
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -155,10 +268,16 @@ func (m mysqlUserRepository) FindByEmail(ctx context.Context, email string) (dom
 		    id,
 		    email,
 		    password_hash,
+		    auth_provider,
 		    full_name,
 		    cpf,
 		    birth_date,
-		    phone, 
+		    phone,
+		    profile_picture,
+		    email_verified,
+		    phone_verified,
+		    profile_completed,
+		    last_login,
 		    status,
 		    token_version,
 		    created_at,
@@ -168,19 +287,44 @@ func (m mysqlUserRepository) FindByEmail(ctx context.Context, email string) (dom
 `
 
 	var res domain.User
+	var cpfNull, phoneNull, profilePictureNull sql.NullString
+	var birthDateNull, lastLoginNull sql.NullTime
+
 	err := m.dbClient.QueryRowContext(ctx, query, email).Scan(
 		&res.ID,
 		&res.Email,
 		&res.Password,
+		&res.AuthProvider,
 		&res.FullName,
-		&res.CPF,
-		&res.BirthDate,
-		&res.Phone,
+		&cpfNull,
+		&birthDateNull,
+		&phoneNull,
+		&profilePictureNull,
+		&res.EmailVerified,
+		&res.PhoneVerified,
+		&res.ProfileCompleted,
+		&lastLoginNull,
 		&res.Status,
 		&res.TokenVersion,
 		&res.CreatedAt,
 		&res.UpdatedAt,
 	)
+
+	if cpfNull.Valid {
+		res.CPF = cpfNull.String
+	}
+	if phoneNull.Valid {
+		res.Phone = phoneNull.String
+	}
+	if profilePictureNull.Valid {
+		res.ProfilePicture = profilePictureNull.String
+	}
+	if birthDateNull.Valid {
+		res.BirthDate = &birthDateNull.Time
+	}
+	if lastLoginNull.Valid {
+		res.LastLogin = &lastLoginNull.Time
+	}
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):

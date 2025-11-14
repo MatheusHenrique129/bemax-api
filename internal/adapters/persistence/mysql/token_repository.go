@@ -22,16 +22,18 @@ func (m mysqlTokenRepository) Save(ctx context.Context, token *auth.Token) error
 		INSERT INTO tokens (
 			id,
 			user_id,
+			session_id,
 		    token,
 		    token_type,
 			expires_at,
 		    created_at
-		) VALUES (?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 	row, err := m.dbClient.ExecContext(ctx, query,
 		token.ID,
 		token.UserID,
+		token.SessionID,
 		token.Token,
 		token.Type,
 		token.ExpiresAt,
@@ -57,26 +59,40 @@ func (m mysqlTokenRepository) FindByToken(ctx context.Context, refreshToken stri
 		SELECT 
 			id,
 			user_id,
+			session_id,
 			token,
 			token_type,
+			is_revoked,
 			expires_at,
 			created_at
 		FROM tokens
 		WHERE token = ? 
 		  AND token_type = ?
+		  AND is_revoked = false
 		ORDER BY created_at DESC
 		LIMIT 1
 `
 
 	var token auth.Token
+	var sessionID sql.NullString
+
 	err := m.dbClient.QueryRowContext(ctx, query, refreshToken, core.TokenTypeRefresh).Scan(
 		&token.ID,
 		&token.UserID,
+		&sessionID,
 		&token.Token,
 		&token.Type,
+		&token.IsRevoked,
 		&token.ExpiresAt,
 		&token.CreatedAt,
 	)
+
+	if sessionID.Valid {
+		parsedSessionID, parseErr := uuid.Parse(sessionID.String)
+		if parseErr == nil {
+			token.SessionID = parsedSessionID
+		}
+	}
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -91,11 +107,15 @@ func (m mysqlTokenRepository) FindByToken(ctx context.Context, refreshToken stri
 }
 
 func (m mysqlTokenRepository) RevokeToken(ctx context.Context, tokenString string) error {
-	query := `DELETE FROM tokens
-       WHERE token = ?
+	query := `
+		UPDATE tokens 
+		SET is_revoked = true, 
+		    revoked_at = ?,
+		    revoked_reason = 'logout'
+		WHERE token = ?
 `
 
-	result, err := m.dbClient.ExecContext(ctx, query, tokenString)
+	result, err := m.dbClient.ExecContext(ctx, query, time.Now().UTC(), tokenString)
 	if err != nil {
 		m.logger.Error(fmt.Sprintf("error revoking token: %s", tokenString), err)
 		return fmt.Errorf("error revoking token: %w", err)
@@ -116,11 +136,17 @@ func (m mysqlTokenRepository) RevokeToken(ctx context.Context, tokenString strin
 }
 
 func (m mysqlTokenRepository) RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error {
-	query := `DELETE FROM tokens 
-       WHERE user_id = ? AND token_type = ?
+	query := `
+		UPDATE tokens 
+		SET is_revoked = true, 
+		    revoked_at = ?,
+		    revoked_reason = 'logout_all'
+		WHERE user_id = ? 
+		  AND token_type = ?
+		  AND is_revoked = false
 `
 
-	result, err := m.dbClient.ExecContext(ctx, query, userID, core.TokenTypeRefresh)
+	result, err := m.dbClient.ExecContext(ctx, query, time.Now().UTC(), userID, core.TokenTypeRefresh)
 	if err != nil {
 		m.logger.Error(fmt.Sprintf("error revoking all tokens for user: %s", userID), err)
 		return fmt.Errorf("error revoking user tokens: %w", err)

@@ -6,6 +6,7 @@ var (
 	ErrQuery                = errors.New("error while executing query")
 	ErrRoleNotFound         = errors.New("role not found")
 	ErrUserNotFound         = errors.New("user not found")
+	ErrSessionNotFound      = errors.New("session not found")
 	ErrLoginNotFound        = errors.New("login not found")
 	ErrTokenNotFound        = errors.New("token not found")
 	ErrNoRowsAffected       = errors.New("no rows affected")
