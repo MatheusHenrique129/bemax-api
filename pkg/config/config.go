@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
@@ -22,18 +23,19 @@ func (c *viperConfigAdapter) LoadConfiguration() (ports.Configuration, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// Environment variable configuration to override the config file
+	c.viper.SetEnvPrefix("")
+	c.viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	c.viper.AutomaticEnv()
+
 	// Set configuration file properties
 	c.viper.SetConfigName("config")
 	c.viper.SetConfigType("json")
 
 	// Add multiple paths where config file might be located
+	c.viper.AddConfigPath(".")
 	c.viper.AddConfigPath("./cmd/api")
 	c.viper.AddConfigPath("./cmd/api/config.json")
-
-	// Environment variable configuration
-	//c.viper.SetEnvPrefix("BEMAX")
-	//c.viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	c.viper.AutomaticEnv()
 
 	// Set default values
 	c.setDefaults()
@@ -68,11 +70,13 @@ func (c *viperConfigAdapter) setDefaults() {
 	// Log level
 	c.viper.SetDefault("log_level", ports.DefaultLogLevel)
 
-	// Server configuration
+	// Server configurat ion
 	c.viper.SetDefault("server.port", ports.DefaultPort)
 	c.viper.SetDefault("server.app_idle_timeout_ms", ports.DefaultAppIdleTimeoutMs)
 	c.viper.SetDefault("server.app_read_timeout_ms", ports.DefaultAppReadTimeoutMs)
 	c.viper.SetDefault("server.app_write_timeout_ms", ports.DefaultAppWriteTimeoutMs)
+	c.viper.SetDefault("auth.firebase.project_id", ports.DefaultFirebaseProjectID)
+	c.viper.SetDefault("auth.firebase.credentials_path", ports.DefaultFirebaseCredentialsPath)
 }
 
 // WatchConfig enables configuration file watching for hot reload

@@ -18,6 +18,7 @@ import (
 var (
 	ErrUserInactive         = errors.New("user is inactive")
 	ErrCPFAlreadyExists     = errors.New("cpf already exists")
+	ErrEmailAlreadyExists   = errors.New("email already exists")
 	ErrInvalidCredentials   = errors.New("invalid credentials")
 	ErrTooManyLoginAttempts = errors.New("too many login attempts, try again later")
 )
@@ -25,7 +26,9 @@ var (
 type UserService interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (domain.User, apierrors.RestError)
 	CreateUser(ctx context.Context, dataReq dto.UserRegisterRequest) (domain.User, apierrors.RestError)
+	CreateUserOAuth(ctx context.Context, user domain.User) (domain.User, apierrors.RestError)
 	AuthenticateUser(ctx context.Context, email, password string, ipAddress, userAgent string) (*domain.User, apierrors.RestError)
+	UpdateLastLogin(ctx context.Context, user domain.User) apierrors.RestError
 
 	GetTokenVersion(ctx context.Context, userID uuid.UUID) (int, apierrors.RestError)
 	IncrementTokenVersion(ctx context.Context, userID uuid.UUID) apierrors.RestError
@@ -49,6 +52,12 @@ func (u userService) GetUserByID(ctx context.Context, id uuid.UUID) (domain.User
 		return domain.User{}, apierrors.NewInternalServerRestError(fmt.Sprintf("error finding user by id: %s.", id), err)
 	}
 
+	roles, errRoles := u.roleService.GetUserRoles(ctx, user.ID)
+	if errRoles != nil {
+		return domain.User{}, errRoles
+	}
+
+	user.Roles = roles
 	return user, nil
 }
 
@@ -103,6 +112,50 @@ func (u userService) CreateUser(ctx context.Context, userRegister dto.UserRegist
 	return domainUser, nil
 }
 
+func (u userService) CreateUserOAuth(ctx context.Context, user domain.User) (domain.User, apierrors.RestError) {
+	res, err := u.userRepository.FindByEmail(ctx, user.Email)
+	if err != nil {
+		if !errors.Is(err, mysql.ErrUserNotFound) {
+			u.logger.Error(fmt.Sprintf("error getting user with email %s.", user.Email), err)
+			return domain.User{}, apierrors.NewInternalServerRestError(fmt.Sprintf("error finding user by email: %s.", user.Email), err)
+		}
+	}
+
+	if res.Email != "" {
+		var causes apierrors.CauseList
+		causes = append(causes, apierrors.CauseList{
+			apierrors.FieldError{
+				Field:   "user_already_exists",
+				Message: ErrEmailAlreadyExists.Error(),
+			},
+		})
+
+		return domain.User{}, apierrors.NewConflictRestError(
+			"User with this email already exists",
+			causes,
+		)
+	}
+
+	txErr := u.userRepository.WithTransaction(ctx, func(ctx context.Context, tx *sql.Tx) error {
+		if err = u.userRepository.Create(ctx, user); err != nil {
+			return err
+		}
+
+		role, err := u.roleService.AssignRoleToUser(ctx, user.ID, "ADMIN")
+		if err != nil {
+			return err
+		}
+
+		user.Roles = append(user.Roles, role)
+		return nil
+	})
+	if txErr != nil {
+		return domain.User{}, apierrors.NewInternalServerRestError("An error occurred while trying to create the user", txErr)
+	}
+
+	return user, nil
+}
+
 func (u userService) AuthenticateUser(ctx context.Context, email, password string, ipAddress, userAgent string) (*domain.User, apierrors.RestError) {
 	blocked, err := u.checkRateLimit(ctx, email, 5)
 	if err != nil {
@@ -132,11 +185,17 @@ func (u userService) AuthenticateUser(ctx context.Context, email, password strin
 		return nil, apierrors.NewInternalServerRestError("error finding user", err)
 	}
 
+	if user.IsOAuthAuth() {
+		if recordErr := u.recordFailedAttempt(ctx, email, ipAddress, userAgent); recordErr != nil {
+			u.logger.Error("critical: failed to record failed attempt", recordErr)
+		}
+		return nil, apierrors.NewUnauthorizedRestError("this account uses OAuth authentication, please complete your details to login.")
+	}
+
 	roles, errRoles := u.roleService.GetUserRoles(ctx, user.ID)
 	if errRoles != nil {
 		return nil, errRoles
 	}
-
 	user.Roles = roles
 
 	if !user.IsActive() {
@@ -171,6 +230,16 @@ func (u userService) AuthenticateUser(ctx context.Context, email, password strin
 	}
 
 	return &user, nil
+}
+
+func (u userService) UpdateLastLogin(ctx context.Context, user domain.User) apierrors.RestError {
+	if err := u.userRepository.UpdateLastLogin(ctx, user.ID); err != nil {
+		u.logger.Error(err.Error(), err)
+		return apierrors.NewInternalServerRestError("error update last login", err)
+	}
+
+	return nil
+
 }
 
 func (u userService) GetTokenVersion(ctx context.Context, userID uuid.UUID) (int, apierrors.RestError) {

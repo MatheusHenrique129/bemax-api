@@ -12,6 +12,7 @@ import (
 type RoleService interface {
 	AssignRoleToUser(ctx context.Context, userID uuid.UUID, roleName string) (domain.Role, apierrors.RestError)
 	GetUserRoles(ctx context.Context, userID uuid.UUID) ([]domain.Role, apierrors.RestError)
+	GetByName(roleName string) (*domain.Role, apierrors.RestError)
 }
 
 type roleService struct {
@@ -41,6 +42,16 @@ func (s *roleService) GetUserRoles(ctx context.Context, userID uuid.UUID) ([]dom
 	}
 
 	return res, nil
+}
+
+// GetByName finds a role by name
+func (s *roleService) GetByName(roleName string) (*domain.Role, apierrors.RestError) {
+	ctx := context.Background()
+	role, err := s.roleRepository.FindByName(ctx, roleName)
+	if err != nil {
+		return nil, apierrors.NewNotFoundRestError("role not found")
+	}
+	return &role, nil
 }
 
 func NewRoleService(

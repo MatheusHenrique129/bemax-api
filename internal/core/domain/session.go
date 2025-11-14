@@ -1,23 +1,36 @@
 package domain
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
 
+type DeviceType string
+
+const (
+	DeviceTypeMobile  DeviceType = "mobile"
+	DeviceTypeDesktop DeviceType = "desktop"
+	DeviceTypeTablet  DeviceType = "tablet"
+	DeviceTypeUnknown DeviceType = "unknown"
+)
+
 type Session struct {
-	ID                 uuid.UUID `json:"id"`
-	UserID             uuid.UUID `json:"user_id"`
-	SessionID          string    `json:"session_id"`
-	LastAccessTokenJTI string    `json:"last_access_token_jti"`
-	DeviceInfo         string    `json:"device_info"`
-	IPAddress          string    `json:"ip_address"`
-	UserAgent          string    `json:"user_agent"`
-	CreatedAt          time.Time `json:"created_at"`
-	LastRefreshedAt    time.Time `json:"last_refreshed_at"`
-	ExpiresAt          time.Time `json:"expires_at"`
-	IsActive           bool      `json:"is_active"`
+	ID                 uuid.UUID  `json:"id"`
+	UserID             uuid.UUID  `json:"user_id"`
+	SessionID          string     `json:"session_id"`
+	LastAccessTokenJTI string     `json:"last_access_token_jti"`
+	DeviceType         DeviceType `json:"device_type"`
+	UserAgent          string     `json:"user_agent"`
+	IPAddress          string     `json:"ip_address"`
+	IsSuspicious       bool       `json:"is_suspicious"`
+	RiskScore          int        `json:"risk_score"`
+	CreatedAt          time.Time  `json:"created_at"`
+	LastActivityAt     time.Time  `json:"last_activity_at"`
+	LastRefreshedAt    time.Time  `json:"last_refreshed_at"`
+	ExpiresAt          time.Time  `json:"expires_at"`
+	IsActive           bool       `json:"is_active"`
 }
 
 func NewSession(userID uuid.UUID, deviceInfo, ipAddress, userAgent string) *Session {
@@ -28,18 +41,22 @@ func NewSession(userID uuid.UUID, deviceInfo, ipAddress, userAgent string) *Sess
 		ID:              uuid.New(),
 		UserID:          userID,
 		SessionID:       sessionID,
-		DeviceInfo:      deviceInfo,
+		DeviceType:      DetectDeviceType(userAgent),
 		IPAddress:       ipAddress,
 		UserAgent:       userAgent,
 		CreatedAt:       now,
+		LastActivityAt:  now,
 		LastRefreshedAt: now,
-		ExpiresAt:       now.Add(3 * 24 * time.Hour), // 3 days
+		IsSuspicious:    false,
+		RiskScore:       0,
+		ExpiresAt:       now.Add(3 * 24 * time.Hour), // 3 days TODO create method ttl in env
 		IsActive:        true,
 	}
 }
 
 func (s *Session) UpdateLastAccessToken(tokenJTI string) {
 	s.LastAccessTokenJTI = tokenJTI
+	s.LastActivityAt = time.Now().UTC()
 	s.LastRefreshedAt = time.Now().UTC()
 }
 
@@ -49,4 +66,23 @@ func (s *Session) IsExpired() bool {
 
 func (s *Session) Deactivate() {
 	s.IsActive = false
+}
+
+func (s *Session) MarkSuspicious() {
+	s.IsSuspicious = true
+	s.RiskScore = 100
+}
+
+func DetectDeviceType(userAgent string) DeviceType {
+	ua := strings.ToLower(userAgent)
+	switch {
+	case strings.Contains(ua, "mobile") || strings.Contains(ua, "android") || strings.Contains(ua, "iphone"):
+		return DeviceTypeMobile
+	case strings.Contains(ua, "tablet") || strings.Contains(ua, "ipad"):
+		return DeviceTypeTablet
+	case strings.Contains(ua, "windows") || strings.Contains(ua, "macintosh") || strings.Contains(ua, "linux"):
+		return DeviceTypeDesktop
+	default:
+		return DeviceTypeUnknown
+	}
 }

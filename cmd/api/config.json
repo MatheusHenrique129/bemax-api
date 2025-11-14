@@ -10,6 +10,10 @@
     "jwt": {
       "secret": "${JWT_SECRET_KEY}",
         "ttl": 4320000000000
+    },
+    "firebase": {
+      "project_id": "empty",
+      "credentials_path": "env-empty"
     }
   },
   "storage": {

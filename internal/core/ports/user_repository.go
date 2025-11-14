@@ -13,6 +13,7 @@ type FnWithTx func(ctx context.Context, tx *sql.Tx) error
 type UserRepository interface {
 	WithTransaction(ctx context.Context, fns ...FnWithTx) error
 	Create(ctx context.Context, user domain.User) error
+	Update(ctx context.Context, user domain.User) error
 	FindByID(ctx context.Context, id uuid.UUID) (domain.User, error)
 	FindByCPF(ctx context.Context, cpf string) (domain.User, error)
 	FindByEmail(ctx context.Context, email string) (domain.User, error)

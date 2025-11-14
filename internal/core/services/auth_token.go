@@ -9,13 +9,14 @@ import (
 	"github.com/MatheusHenrique129/bemax-api/internal/adapters/persistence/mysql"
 	"github.com/MatheusHenrique129/bemax-api/internal/core"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/apierrors"
-	auth "github.com/MatheusHenrique129/bemax-api/internal/core/domain"
+	"github.com/MatheusHenrique129/bemax-api/internal/core/domain"
 	"github.com/MatheusHenrique129/bemax-api/internal/core/ports"
+	"github.com/MatheusHenrique129/bemax-api/internal/core/services/dto"
 	"github.com/google/uuid"
 )
 
 const (
-	_defaultRefreshTokenExpires = time.Hour * 24 * 3
+	_defaultRefreshTokenExpires = time.Minute * 2
 )
 
 var (
@@ -23,9 +24,10 @@ var (
 )
 
 type AuthTokenService interface {
-	Login(ctx context.Context, email, password string, ipAddress, userAgent, deviceInfo string) (string, string, time.Duration, apierrors.RestError)
-	ValidateAccessToken(accessToken string) (*auth.Claims, apierrors.RestError)
+	Login(ctx context.Context, email, password string, ipAddress, userAgent, deviceInfo string) (dto.LoginResponse, apierrors.RestError)
+	ValidateAccessToken(accessToken string) (*domain.Claims, apierrors.RestError)
 	RefreshAccessToken(ctx context.Context, refreshToken string) (string, string, time.Duration, apierrors.RestError)
+	GenerateTokensForSession(ctx context.Context, user *domain.User, session *domain.Session) (dto.FirebaseLoginResponse, apierrors.RestError)
 
 	Logout(ctx context.Context, refreshToken string) apierrors.RestError
 	LogoutAllDevices(ctx context.Context, userID uuid.UUID) apierrors.RestError
@@ -40,39 +42,45 @@ type authTokenService struct {
 	sessionService SessionService
 }
 
-func (a *authTokenService) Login(ctx context.Context, email, password string, ipAddress, userAgent, deviceInfo string) (string, string, time.Duration, apierrors.RestError) {
+func (a *authTokenService) Login(ctx context.Context, email, password string, ipAddress, userAgent, deviceInfo string) (dto.LoginResponse, apierrors.RestError) {
 	user, err := a.userService.AuthenticateUser(ctx, email, password, ipAddress, userAgent)
 	if err != nil {
-		return "", "", 0, err
+		return dto.LoginResponse{}, err
 	}
 
 	session, err := a.sessionService.CreateSession(ctx, user.ID, deviceInfo, ipAddress, userAgent)
 	if err != nil {
-		return "", "", 0, err
+		return dto.LoginResponse{}, err
 	}
 
 	accessToken, err := a.authJWT.GenerateToken(user.ID, user.Email, user.Roles, user.TokenVersion, session.SessionID)
 	if err != nil {
 		a.logger.Error("failed to generate access token", err)
-		return "", "", 0, err
+		return dto.LoginResponse{}, err
 	}
 
 	if err := a.sessionService.UpdateSessionToken(ctx, session.SessionID, accessToken.TokenJTI); err != nil {
-		return "", "", 0, err
+		return dto.LoginResponse{}, err
 	}
 
 	refreshTokenString := uuid.New().String()
-	refreshToken := auth.NewToken(user.ID, refreshTokenString, core.TokenTypeRefresh, _defaultRefreshTokenExpires)
+	refreshToken := domain.NewToken(user.ID, session.ID, refreshTokenString, core.TokenTypeRefresh, _defaultRefreshTokenExpires)
 
 	if err := a.tokenRepo.Save(ctx, refreshToken); err != nil {
 		a.logger.Error("error saving token in database", err)
-		return "", "", 0, apierrors.NewInternalServerRestError("error saving token", err)
+		return dto.LoginResponse{}, apierrors.NewInternalServerRestError("error saving token", err)
 	}
 
-	return accessToken.Token, refreshTokenString, accessToken.ExpireAt, nil
+	return dto.LoginResponse{
+		AccessToken:  accessToken.Token,
+		RefreshToken: refreshTokenString,
+		TokenType:    string(core.TokenTypeBearer),
+		ExpiresIn:    accessToken.ExpireAt,
+		User:         user,
+	}, nil
 }
 
-func (a *authTokenService) ValidateAccessToken(accessToken string) (*auth.Claims, apierrors.RestError) {
+func (a *authTokenService) ValidateAccessToken(accessToken string) (*domain.Claims, apierrors.RestError) {
 	claims, err := a.authJWT.ValidateToken(accessToken)
 	if err != nil {
 		return nil, err
@@ -124,11 +132,6 @@ func (a *authTokenService) RefreshAccessToken(ctx context.Context, refreshToken 
 		return "", "", 0, apierrors.NewUnauthorizedRestError(ErrUserInactive.Error())
 	}
 
-	roles, errRoles := a.roleService.GetUserRoles(ctx, user.ID)
-	if errRoles != nil {
-		return "", "", 0, errRoles
-	}
-
 	sessions, err := a.sessionService.GetUserSessions(ctx, user.ID)
 	if err != nil {
 		return "", "", 0, apierrors.NewUnauthorizedRestError(err.Error())
@@ -140,7 +143,7 @@ func (a *authTokenService) RefreshAccessToken(ctx context.Context, refreshToken 
 
 	activeSession := sessions[0]
 
-	newAccessToken, err := a.authJWT.GenerateToken(user.ID, user.Email, roles, user.TokenVersion, activeSession.SessionID)
+	newAccessToken, err := a.authJWT.GenerateToken(user.ID, user.Email, user.Roles, user.TokenVersion, activeSession.SessionID)
 	if err != nil {
 		return "", "", 0, apierrors.NewInternalServerRestError("failed to generate access token", err)
 	}
@@ -150,7 +153,7 @@ func (a *authTokenService) RefreshAccessToken(ctx context.Context, refreshToken 
 	}
 
 	newRefreshTokenString := uuid.New().String()
-	newRefreshToken := auth.NewToken(user.ID, newRefreshTokenString, core.TokenTypeRefresh, _defaultRefreshTokenExpires)
+	newRefreshToken := domain.NewToken(user.ID, activeSession.ID, newRefreshTokenString, core.TokenTypeRefresh, _defaultRefreshTokenExpires)
 
 	if err := a.tokenRepo.Save(ctx, newRefreshToken); err != nil {
 		return "", "", 0, apierrors.NewInternalServerRestError("error saving new refresh token", err)
@@ -164,6 +167,38 @@ func (a *authTokenService) RefreshAccessToken(ctx context.Context, refreshToken 
 	return newAccessToken.Token, newRefreshTokenString, newAccessToken.ExpireAt, nil
 }
 
+// GenerateTokensForSession generates access and refresh tokens for an already authenticated user with an existing session.
+func (a *authTokenService) GenerateTokensForSession(ctx context.Context, user *domain.User, session *domain.Session) (dto.FirebaseLoginResponse, apierrors.RestError) {
+	accessToken, err := a.authJWT.GenerateToken(user.ID, user.Email, user.Roles, user.TokenVersion, session.SessionID)
+	if err != nil {
+		a.logger.Error("failed to generate access token", err)
+		return dto.FirebaseLoginResponse{}, err
+	}
+
+	// Update session with token JTI
+	if err := a.sessionService.UpdateSessionToken(ctx, session.SessionID, accessToken.TokenJTI); err != nil {
+		return dto.FirebaseLoginResponse{}, err
+	}
+
+	// Generate refresh token
+	refreshTokenString := uuid.New().String()
+	refreshToken := domain.NewToken(user.ID, session.ID, refreshTokenString, core.TokenTypeRefresh, _defaultRefreshTokenExpires)
+
+	// Save refresh token to database
+	if err := a.tokenRepo.Save(ctx, refreshToken); err != nil {
+		a.logger.Error("error saving refresh token in database", err)
+		return dto.FirebaseLoginResponse{}, apierrors.NewInternalServerRestError("error saving token", err)
+	}
+
+	return dto.FirebaseLoginResponse{
+		AccessToken:  accessToken.Token,
+		RefreshToken: refreshTokenString,
+		TokenType:    string(core.TokenTypeBearer),
+		ExpiresIn:    accessToken.ExpireAt,
+		User:         user,
+	}, nil
+}
+
 func (a *authTokenService) Logout(ctx context.Context, refreshToken string) apierrors.RestError {
 	token, err := a.tokenRepo.FindByToken(ctx, refreshToken)
 	if err != nil {
@@ -172,6 +207,16 @@ func (a *authTokenService) Logout(ctx context.Context, refreshToken string) apie
 		}
 		a.logger.Error("error finding refresh token for logout", err)
 		return apierrors.NewInternalServerRestError("error validating token", err)
+	}
+
+	if token.SessionID != uuid.Nil {
+		session, errSession := a.sessionService.GetSessionByID(ctx, token.SessionID)
+		if errSession == nil && session != nil {
+			if errDeactivate := a.sessionService.TerminateSession(ctx, session.SessionID); errDeactivate != nil {
+				a.logger.Error(fmt.Sprintf("failed to deactivate session for logout: %s", session.SessionID), errDeactivate)
+				// Não falha o logout, apenas loga
+			}
+		}
 	}
 
 	if err := a.userService.IncrementTokenVersion(ctx, token.UserID); err != nil {

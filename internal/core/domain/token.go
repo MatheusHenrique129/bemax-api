@@ -10,12 +10,16 @@ import (
 type TokenType string
 
 type Token struct {
-	ExpiresAt time.Time
-	CreatedAt time.Time
-	Token     string
-	Type      TokenType
-	ID        uuid.UUID
-	UserID    uuid.UUID
+	ID            uuid.UUID  `json:"id"`
+	UserID        uuid.UUID  `json:"user_id"`
+	SessionID     uuid.UUID  `json:"session_id"`
+	Token         string     `json:"token"`
+	Type          TokenType  `json:"token_type"`
+	IsRevoked     bool       `json:"is_revoked"`
+	RevokedAt     *time.Time `json:"revoked_at,omitempty"`
+	RevokedReason string     `json:"revoked_reason,omitempty"`
+	ExpiresAt     time.Time  `json:"expires_at"`
+	CreatedAt     time.Time  `json:"created_at"`
 }
 
 type Claims struct {
@@ -32,11 +36,23 @@ func (t *Token) IsExpired() bool {
 	return time.Now().After(t.ExpiresAt)
 }
 
+func (t *Token) Revoke(reason string) {
+	now := time.Now().UTC()
+	t.IsRevoked = true
+	t.RevokedAt = &now
+	t.RevokedReason = reason
+}
+
+func (t *Token) IsValid() bool {
+	return !t.IsRevoked && !t.IsExpired()
+}
+
 func NewTokenUserClaims(
 	userID uuid.UUID,
 	email string,
 	tokenType TokenType,
-	roles []Role, ttl time.Duration,
+	roles []Role,
+	ttl time.Duration,
 	tokenVersion int,
 	sessionID string,
 ) *Claims {
@@ -60,14 +76,18 @@ func NewTokenUserClaims(
 	}
 }
 
-func NewToken(userID uuid.UUID, token string, tokenType TokenType, ttl time.Duration) *Token {
+func NewToken(userID uuid.UUID, sessionID uuid.UUID, token string, tokenType TokenType, ttl time.Duration) *Token {
 	now := time.Now().UTC()
 	return &Token{
-		ID:        uuid.New(),
-		UserID:    userID,
-		Token:     token,
-		Type:      tokenType,
-		ExpiresAt: now.Add(ttl),
-		CreatedAt: now,
+		ID:            uuid.New(),
+		UserID:        userID,
+		SessionID:     sessionID,
+		Token:         token,
+		Type:          tokenType,
+		IsRevoked:     false,
+		RevokedAt:     nil,
+		RevokedReason: "",
+		ExpiresAt:     now.Add(ttl),
+		CreatedAt:     now,
 	}
 }

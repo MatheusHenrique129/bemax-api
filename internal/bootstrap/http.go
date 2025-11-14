@@ -44,7 +44,7 @@ func CreateWebApplication(logger ports.Logger, cfg ports.Configuration, rt http.
 		IdleTimeout:  time.Millisecond * time.Duration(cfg.Server.AppIdleTimeoutMs),
 	}
 
-	logger.Info(fmt.Sprintf("🚀 Starting web server in Port %v", cfg.Server.Port))
+	logger.Info(fmt.Sprintf("🚀 Starting web server in Port %v", server.Addr))
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -93,10 +93,13 @@ func RegisterRoutes(builder *AppBuilder) http.Handler {
 		Get("/ping", builder.HealthHandler.Ping)
 
 	r.Post("/auth/registry", builder.AuthHandler.RegistryUser)
+
 	r.Post("/auth/login", builder.AuthHandler.Login)
-	r.Post("/auth/refresh", builder.AuthHandler.RefreshToken)
+	r.Post("/auth/firebase/login", builder.AuthHandler.LoginWithFirebase)
 
 	r.With(builder.AuthMiddleware.AuthenticateRequest).Route("/", func(r chi.Router) {
+		r.Post("/auth/refresh", builder.AuthHandler.RefreshToken)
+
 		r.Post("/auth/logout", builder.AuthHandler.Logout)
 		r.Post("/auth/logout-all", builder.AuthHandler.LogoutAllDevices)
 	})
