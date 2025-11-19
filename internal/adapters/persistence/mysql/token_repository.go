@@ -112,7 +112,7 @@ func (m mysqlTokenRepository) RevokeToken(ctx context.Context, tokenString strin
 		SET is_revoked = true, 
 		    revoked_at = ?,
 		    revoked_reason = 'logout'
-		WHERE token = ?
+       WHERE token = ?
 `
 
 	result, err := m.dbClient.ExecContext(ctx, query, time.Now().UTC(), tokenString)

@@ -17,18 +17,18 @@ const (
 type Type string
 
 type Address struct {
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-	Street     string
-	Number     string
-	Complement string
-	City       string
-	StateID    string
-	ZipCode    string
-	Type       string
-	ID         uuid.UUID
-	UserID     uuid.UUID
-	IsDefault  bool
+	ID         uuid.UUID `json:"id"`
+	UserID     uuid.UUID `json:"user_id"`
+	Street     string    `json:"street"`
+	Number     string    `json:"number"`
+	Complement string    `json:"complement,omitempty"`
+	City       string    `json:"city"`
+	StateID    string    `json:"state_id"`
+	ZipCode    string    `json:"zip_code"`
+	Type       string    `json:"type"`
+	IsDefault  bool      `json:"is_default"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type State struct {

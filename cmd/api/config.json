@@ -9,11 +9,11 @@
   "auth": {
     "jwt": {
       "secret": "${JWT_SECRET_KEY}",
-        "ttl": 4320000000000
+        "ttl": 14400000000000
     },
     "firebase": {
-      "project_id": "empty",
-      "credentials_path": "env-empty"
+      "project_id": "bemax-60828",
+      "credentials_path": "bemax-60828-firebase-adminsdk-fbsvc-9844a5c512.json"
     }
   },
   "storage": {

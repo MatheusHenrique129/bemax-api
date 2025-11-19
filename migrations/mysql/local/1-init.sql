@@ -147,7 +147,7 @@ CREATE TABLE TOKENS (
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
-    FOREIGN KEY (session_id) REFERENCES ACTIVE_SESSI ONS(id) ON DELETE SET NULL,
+    FOREIGN KEY (session_id) REFERENCES ACTIVE_SESSIONS(id) ON DELETE SET NULL,
     INDEX idx_tokens_user (user_id),
     INDEX idx_tokens_session (session_id),
     INDEX idx_tokens_token (token),
@@ -166,4 +166,87 @@ CREATE TABLE LOGIN_ATTEMPTS (
     INDEX idx_LOGIN_ATTEMPTS_EMAIL (email),
     INDEX idx_LOGIN_ATTEMPTS_CREATED_AT (created_at),
     INDEX idx_LOGIN_ATTEMPTS_IP (ip_address)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tabela de categorias de lembretes
+CREATE TABLE IF NOT EXISTS REMINDER_CATEGORIES (
+    id CHAR(36) PRIMARY KEY,
+    user_id CHAR(36) NULL COMMENT 'NULL for system categories',
+    name VARCHAR(100) NOT NULL,
+    name_key VARCHAR(100) NULL COMMENT 'i18n key: category.medication',
+    description VARCHAR(255) NULL,
+    icon VARCHAR(50) NULL COMMENT 'Icon name or emoji',
+    color VARCHAR(20) NULL COMMENT 'Hex color code',
+    scope ENUM('system', 'user') NOT NULL DEFAULT 'user',
+    display_order INT NOT NULL DEFAULT 999,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_category (user_id, name),
+    INDEX idx_categories_user (user_id),
+    INDEX idx_categories_scope (scope),
+    INDEX idx_categories_active (is_active),
+    INDEX idx_categories_order (display_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS REMINDERS (
+    id CHAR(36) PRIMARY KEY,
+    user_id CHAR(36) NOT NULL,
+    category_id CHAR(36) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    status ENUM('active', 'completed', 'cancelled', 'snoozed') NOT NULL DEFAULT 'active',
+    frequency ENUM('once', 'daily', 'weekly', 'monthly', 'custom') NOT NULL DEFAULT 'once',
+    start_date DATE NOT NULL,
+    end_date DATE NULL,
+    reminder_at DATETIME NOT NULL,
+    next_occurrence DATETIME NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    metadata JSON NULL COMMENT 'Custom data (dosage, doctor name, etc)',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES REMINDER_CATEGORIES(id) ON DELETE RESTRICT,
+    INDEX idx_reminders_user (user_id),
+    INDEX idx_reminders_category (category_id),
+    INDEX idx_reminders_status (status),
+    INDEX idx_reminders_active (user_id, is_active),
+    INDEX idx_reminders_next (user_id, next_occurrence),
+    INDEX idx_reminders_reminder_at (reminder_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS HEALTH_PROFILES (
+    id CHAR(36) PRIMARY KEY,
+    user_id CHAR(36) NOT NULL UNIQUE,
+    blood_type ENUM('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown') NOT NULL DEFAULT 'unknown',
+    height DECIMAL(5,2) NULL COMMENT 'Height in cm',
+    weight DECIMAL(5,2) NULL COMMENT 'Weight in kg',
+    allergies JSON NULL COMMENT 'List of allergies',
+    medications JSON NULL COMMENT 'List of continuous medications',
+    medical_conditions JSON NULL COMMENT 'List of medical conditions',
+    notes TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
+    INDEX idx_health_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS EMERGENCY_CONTACTS (
+    id CHAR(36) PRIMARY KEY,
+    user_id CHAR(36) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    relationship ENUM('spouse', 'parent', 'child', 'sibling', 'friend', 'doctor', 'caregiver', 'other') NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    email VARCHAR(255) NULL,
+    address TEXT NULL,
+    notes TEXT NULL,
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Main emergency contact',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
+    INDEX idx_emergency_user (user_id),
+    INDEX idx_emergency_primary (user_id, is_primary),
+    INDEX idx_emergency_active (user_id, is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

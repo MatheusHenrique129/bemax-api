@@ -38,8 +38,8 @@ type User struct {
 	CPF              string       `json:"cpf"`
 	Email            string       `json:"email"`
 	FullName         string       `json:"full_name"`
-	ProfilePicture   string       `json:"profile_picture"`
-	Addresses        []Address    `json:"addresses"`
+	ProfilePicture   string       `json:"profile_picture,omitempty"`
+	Addresses        []Address    `json:"addresses,omitempty"`
 	Roles            []Role       `json:"roles"`
 	EmailVerified    bool         `json:"email_verified"`
 	PhoneVerified    bool         `json:"phone_verified"`
@@ -159,6 +159,8 @@ func (u *User) VerifyPhone() {
 
 // NewOAuthUser creates a new OAuth user (without password, CPF optional)
 func NewOAuthUser(email, fullName string, emailVerified bool) (User, apierrors.RestError) {
+	now := time.Now().UTC()
+
 	// TODO implement Validators in email
 	return User{
 		ID:               uuid.New(),
@@ -171,5 +173,9 @@ func NewOAuthUser(email, fullName string, emailVerified bool) (User, apierrors.R
 		ProfileCompleted: false,
 		Status:           UserStatusActive,
 		TokenVersion:     0,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+		Roles:            []Role{},
+		Addresses:        []Address{},
 	}, nil
 }

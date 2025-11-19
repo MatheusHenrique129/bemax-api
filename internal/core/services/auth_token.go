@@ -26,7 +26,7 @@ var (
 type AuthTokenService interface {
 	Login(ctx context.Context, email, password string, ipAddress, userAgent, deviceInfo string) (dto.LoginResponse, apierrors.RestError)
 	ValidateAccessToken(accessToken string) (*domain.Claims, apierrors.RestError)
-	RefreshAccessToken(ctx context.Context, refreshToken string) (string, string, time.Duration, apierrors.RestError)
+	RefreshAccessToken(ctx context.Context, refreshToken string) (string, string, int64, apierrors.RestError)
 	GenerateTokensForSession(ctx context.Context, user *domain.User, session *domain.Session) (dto.FirebaseLoginResponse, apierrors.RestError)
 
 	Logout(ctx context.Context, refreshToken string) apierrors.RestError
@@ -109,7 +109,7 @@ func (a *authTokenService) ValidateAccessToken(accessToken string) (*domain.Clai
 	return claims, nil
 }
 
-func (a *authTokenService) RefreshAccessToken(ctx context.Context, refreshToken string) (string, string, time.Duration, apierrors.RestError) {
+func (a *authTokenService) RefreshAccessToken(ctx context.Context, refreshToken string) (string, string, int64, apierrors.RestError) {
 	token, err := a.tokenRepo.FindByToken(ctx, refreshToken)
 	if err != nil {
 		if errors.Is(err, mysql.ErrTokenNotFound) {

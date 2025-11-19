@@ -47,7 +47,7 @@ func (j *jwtAdapter) GenerateToken(userID uuid.UUID, email string, roles []domai
 		Token:     signed,
 		TokenJTI:  claims.ID,
 		Timestamp: time.Now().UTC(),
-		ExpireAt:  ttl,
+		ExpireAt:  int64(ttl),
 	}, nil
 }
 

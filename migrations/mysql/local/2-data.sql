@@ -1,6 +1,6 @@
 USE db_bemax_api;
 
--- Add roles default
+-- add roles default
 INSERT INTO ROLES (id, name, description) VALUES
     (UUID(), 'admin', 'Administrador do sistema com acesso total'),
     (UUID(), 'manager', 'Gerente com acesso ao painel administrativo'),
@@ -36,3 +36,13 @@ INSERT INTO STATES (id, name, region) VALUES
     ('SE', 'Sergipe', 'Nordeste'),
     ('SP', 'São Paulo', 'Sudeste'),
     ('TO', 'Tocantins', 'Norte');
+
+-- add default categories to system
+INSERT INTO REMINDER_CATEGORIES (id, user_id, name, name_key, description, icon, color, scope, display_order) VALUES
+    (UUID(), NULL, 'Medication', 'category.medication', 'Medicine and prescriptions', '💊', '#FF5733', 'system', 1),
+    (UUID(), NULL, 'Appointment', 'category.appointment', 'Medical appointments', '🩺', '#3498DB', 'system', 2),
+    (UUID(), NULL, 'Exam', 'category.exam', 'Medical exams and tests', '🔬', '#9B59B6', 'system', 3),
+    (UUID(), NULL, 'Exercise', 'category.exercise', 'Physical activities', '🏃', '#2ECC71', 'system', 4),
+    (UUID(), NULL, 'Therapy', 'category.therapy', 'Therapy sessions', '🧠', '#E74C3C', 'system', 5),
+    (UUID(), NULL, 'Diet', 'category.diet', 'Dietary reminders', '🥗', '#F39C12', 'system', 6),
+    (UUID(), NULL, 'Other', 'category.other', 'Other reminders', '📌', '#95A5A6', 'system', 999);

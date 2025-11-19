@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -86,23 +87,96 @@ func RegisterRoutes(builder *AppBuilder) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	r.Use(CustomRecoverer(builder.Logger))
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.With(builder.AuthMiddleware.AuthenticateRequest).
-		Get("/ping", builder.HealthHandler.Ping)
+	r.Get("/ping", builder.HealthHandler.Ping)
 
 	r.Post("/auth/registry", builder.AuthHandler.RegistryUser)
-
 	r.Post("/auth/login", builder.AuthHandler.Login)
 	r.Post("/auth/firebase/login", builder.AuthHandler.LoginWithFirebase)
+	r.Post("/auth/refresh", builder.AuthHandler.RefreshToken)
 
 	r.With(builder.AuthMiddleware.AuthenticateRequest).Route("/", func(r chi.Router) {
-		r.Post("/auth/refresh", builder.AuthHandler.RefreshToken)
-
+		// Auth routes
 		r.Post("/auth/logout", builder.AuthHandler.Logout)
 		r.Post("/auth/logout-all", builder.AuthHandler.LogoutAllDevices)
+
+		// Profile route
+		r.Get("/me", builder.ProfileHandler.GetUserProfile)
+
+		// Health Profile routes
+		r.Route("/health-profile", func(r chi.Router) {
+			r.Get("/", builder.HealthProfileHandler.GetHealthProfile)
+			r.Put("/", builder.HealthProfileHandler.UpdateHealthProfile)
+		})
+
+		// Emergency Contacts routes
+		r.Route("/emergency-contacts", func(r chi.Router) {
+			r.Get("/", builder.EmergencyContactHandler.GetUserEmergencyContacts)
+			r.Post("/", builder.EmergencyContactHandler.CreateEmergencyContact)
+			r.Get("/{contactID}", builder.EmergencyContactHandler.GetEmergencyContactByID)
+			r.Put("/{contactID}", builder.EmergencyContactHandler.UpdateEmergencyContact)
+			r.Delete("/{contactID}", builder.EmergencyContactHandler.DeleteEmergencyContact)
+			r.Post("/{contactID}/set-primary", builder.EmergencyContactHandler.SetPrimaryContact)
+		})
+
+		// Reminder Categories routes
+		r.Route("/reminder-categories", func(r chi.Router) {
+			r.Get("/", builder.ReminderCategoryHandler.GetCategoriesForUser)
+			r.Post("/", builder.ReminderCategoryHandler.CreateUserCategory)
+			r.Put("/{category_id}", builder.ReminderCategoryHandler.UpdateCategory)
+			r.Delete("/{category_id}", builder.ReminderCategoryHandler.DeleteCategory)
+		})
+
+		// Reminders routes
+		r.Route("/reminders", func(r chi.Router) {
+			r.Post("/", builder.ReminderHandler.CreateReminder)
+			r.Get("/", builder.ReminderHandler.GetUserReminders)
+			r.Get("/active", builder.ReminderHandler.GetActiveReminders)
+			r.Get("/upcoming", builder.ReminderHandler.GetUpcomingReminders)
+			r.Get("/{reminder_id}", builder.ReminderHandler.GetReminderByID)
+			r.Put("/{reminder_id}", builder.ReminderHandler.UpdateReminder)
+			r.Delete("/{reminder_id}", builder.ReminderHandler.DeleteReminder)
+			r.Post("/{reminder_id}/complete", builder.ReminderHandler.CompleteReminder)
+			r.Post("/{reminder_id}/snooze", builder.ReminderHandler.SnoozeReminder)
+		})
+
 	})
 
 	return r
+}
+
+// CustomRecoverer is a middleware that recovers from panics and logs them properly
+func CustomRecoverer(logger ports.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if rvr := recover(); rvr != nil {
+					// Log the panic with stack trace
+					logger.Error(fmt.Sprintf("PANIC RECOVERED: %v", rvr), fmt.Errorf("%v", rvr))
+
+					// Ensure headers are written
+					if !isResponseWritten(w) {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusInternalServerError)
+						_ = json.NewEncoder(w).Encode(map[string]string{
+							"error":   "internal_server_error",
+							"message": "An unexpected error occurred",
+						})
+					}
+				}
+			}()
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// Helper to check if response was already written
+func isResponseWritten(w http.ResponseWriter) bool {
+	// This is a heuristic; not perfect but helps
+	// If you have access to a custom ResponseWriter, you can track this better
+	return false // For now, always try to write error
 }

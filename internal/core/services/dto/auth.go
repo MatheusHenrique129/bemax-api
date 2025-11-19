@@ -15,11 +15,11 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	AccessToken  string        `json:"access_token"`
-	RefreshToken string        `json:"refresh_token"`
-	TokenType    string        `json:"token_type"`
-	ExpiresIn    time.Duration `json:"expires_in"`
-	User         *domain.User  `json:"user"`
+	AccessToken  string       `json:"access_token"`
+	RefreshToken string       `json:"refresh_token"`
+	TokenType    string       `json:"token_type"`
+	ExpiresIn    int64        `json:"expires_in"`
+	User         *domain.User `json:"user"`
 }
 
 type FirebaseLoginRequest struct {
@@ -28,11 +28,11 @@ type FirebaseLoginRequest struct {
 }
 
 type FirebaseLoginResponse struct {
-	AccessToken  string        `json:"access_token"`
-	RefreshToken string        `json:"refresh_token"`
-	TokenType    string        `json:"token_type"`
-	ExpiresIn    time.Duration `json:"expires_in"`
-	User         *domain.User  `json:"user"`
+	AccessToken  string       `json:"access_token"`
+	RefreshToken string       `json:"refresh_token"`
+	TokenType    string       `json:"token_type"`
+	ExpiresIn    int64        `json:"expires_in"`
+	User         *domain.User `json:"user"`
 }
 
 type UserRegisterRequest struct {
@@ -60,10 +60,10 @@ type RefreshTokenRequest struct {
 }
 
 type GetTokenResponse struct {
-	Token     string        `json:"token"`
-	TokenJTI  string        `json:"token_jti"`
-	Timestamp time.Time     `json:"timestamp"`
-	ExpireAt  time.Duration `json:"expire_at"`
+	Token     string    `json:"token"`
+	TokenJTI  string    `json:"token_jti"`
+	Timestamp time.Time `json:"timestamp"`
+	ExpireAt  int64     `json:"expire_at"`
 }
 
 func (f *FirebaseLoginRequest) Validate() apierrors.RestError {

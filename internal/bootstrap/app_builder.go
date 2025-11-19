@@ -23,8 +23,13 @@ type AppBuilder struct {
 
 	AuthMiddleware middleware.AuthMiddleware
 
-	HealthHandler handlers.HealthHandler
-	AuthHandler   handlers.AuthHandler
+	HealthHandler           handlers.HealthHandler
+	AuthHandler             handlers.AuthHandler
+	ReminderHandler         handlers.ReminderHandler
+	ReminderCategoryHandler handlers.ReminderCategoryHandler
+	HealthProfileHandler    handlers.HealthProfileHandler
+	EmergencyContactHandler handlers.EmergencyContactHandler
+	ProfileHandler          handlers.ProfileHandler
 }
 
 func BuildAppDependencies(vLogger ports.Logger, cfg ports.Configuration) (*AppBuilder, error) {
@@ -48,6 +53,10 @@ func BuildAppDependencies(vLogger ports.Logger, cfg ports.Configuration) (*AppBu
 	sessionRepositoryPort := mysql.NewMysqlSessionRepository(vLogger, dbClientAdapter)
 	userRoleRepositoryPort := mysql.NewMysqlUserRoleRepository(vLogger, dbClientAdapter)
 	oauthAccountRepositoryPort := mysql.NewMysqlOAuthAccountRepository(vLogger, dbClientAdapter)
+	reminderCategoryRepositoryPort := mysql.NewMysqlReminderCategoryRepository(vLogger, dbClientAdapter)
+	reminderRepositoryPort := mysql.NewMysqlReminderRepository(vLogger, dbClientAdapter)
+	healthProfileRepositoryPort := mysql.NewMysqlHealthProfileRepository(vLogger, dbClientAdapter)
+	emergencyContactRepositoryPort := mysql.NewMysqlEmergencyContactRepository(vLogger, dbClientAdapter)
 
 	// Adapters
 	vLogger.Info(fmt.Sprintf("Creating JWT keys with secret: %s and ttl %v", cfg.Auth.JWT.Secret, cfg.Auth.JWT.TTL))
@@ -59,6 +68,10 @@ func BuildAppDependencies(vLogger ports.Logger, cfg ports.Configuration) (*AppBu
 	sessionService := services.NewSessionService(vLogger, sessionRepositoryPort)
 	authTokenService := services.NewAuthTokenService(vLogger, jwtAdapter, userService, roleService, sessionService, tokenRepositoryPort)
 	firebaseService := services.NewFirebaseService(vLogger, cfg.Auth.Firebase, firebaseClient, userService, roleService, sessionService, authTokenService, oauthAccountRepositoryPort)
+	reminderCategoryService := services.NewReminderCategoryService(vLogger, reminderCategoryRepositoryPort)
+	reminderService := services.NewReminderService(vLogger, reminderRepositoryPort)
+	healthProfileService := services.NewHealthProfileService(vLogger, healthProfileRepositoryPort)
+	emergencyContactService := services.NewEmergencyContactService(vLogger, emergencyContactRepositoryPort)
 
 	// Middlewares
 	authMiddleware := middleware.NewAuthMiddleware(vLogger, jwtAdapter, authTokenService)
@@ -67,12 +80,28 @@ func BuildAppDependencies(vLogger ports.Logger, cfg ports.Configuration) (*AppBu
 	vLogger.Info("Creating handlers")
 	healthHandler := handlers.NewHealthHandler()
 	authHandler := handlers.NewAuthHandler(vLogger, jwtAdapter, userService, authTokenService, firebaseService)
+	reminderHandler := handlers.NewReminderHandler(vLogger, reminderService)
+	reminderCategoryHandler := handlers.NewReminderCategoryHandler(vLogger, reminderCategoryService)
+	healthProfileHandler := handlers.NewHealthProfileHandler(vLogger, healthProfileService)
+	emergencyContactHandler := handlers.NewEmergencyContactHandler(vLogger, emergencyContactService)
+	profileHandler := handlers.NewProfileHandler(
+		vLogger,
+		userService,
+		healthProfileService,
+		emergencyContactService,
+		reminderService,
+	)
 
 	return &AppBuilder{
-		Logger:         vLogger,
-		AuthMiddleware: authMiddleware,
-		HealthHandler:  healthHandler,
-		AuthHandler:    authHandler,
+		Logger:                  vLogger,
+		AuthMiddleware:          authMiddleware,
+		HealthHandler:           healthHandler,
+		AuthHandler:             authHandler,
+		ReminderHandler:         reminderHandler,
+		ReminderCategoryHandler: reminderCategoryHandler,
+		HealthProfileHandler:    healthProfileHandler,
+		EmergencyContactHandler: emergencyContactHandler,
+		ProfileHandler:          profileHandler,
 	}, nil
 }
 
